@@ -1,1 +1,4 @@
-A collection of scripts to be used for aiding in the development of Mate.
+A collection of scripts to be used for aiding the development of Mate.
+
+- update.py updates all the mate git repos (assuming you have them cloned).
+  See the internal documentation of update.py for more info.
