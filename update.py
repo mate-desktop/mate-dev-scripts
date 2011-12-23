@@ -20,6 +20,6 @@ import os
 for d in os.listdir('.'):
     if os.path.isdir(d):
         os.chdir(d)
-        if '.git' in set(os.listdir('.')):
+        if '.git' in os.listdir('.'):
             os.system('git pull')
         os.chdir('..')
