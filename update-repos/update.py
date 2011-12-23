@@ -8,11 +8,11 @@
 
 # Obviously, you want the cwd when the script runs to be the folder that
 # contains all the mate repos. You can achieve this by copying this 
-# script from mate-dev-scripts to the parent directory, running the
-# script via it's path (mate-dev-scripts/update.py), or by creating a
-# symbolic link. I prefer the symbolic link method. It doesn't matter,
-# so long as the cwd for this script is the parent directory of all
-# the mate repos.
+# script from mate-dev-scripts/update-repos to the parent directory,
+# running the script via it's path (mate-dev-scripts/update-repos/update.py),
+# or by creating a symbolic link. I prefer the symbolic link method.
+# It doesn't matter, so long as the cwd for this script is the parent
+# directory of all the mate repos.
 
 import os
 
