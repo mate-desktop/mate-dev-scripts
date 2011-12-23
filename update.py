@@ -18,8 +18,8 @@ import os
 
 # update all the directories
 for d in os.listdir('.'):
-	if os.path.isdir(d):
-		os.chdir(d)
-		if '.git' in set(os.listdir('.')):
-			os.system('git pull')
-		os.chdir('..')
+    if os.path.isdir(d):
+        os.chdir(d)
+        if '.git' in set(os.listdir('.')):
+            os.system('git pull')
+        os.chdir('..')
