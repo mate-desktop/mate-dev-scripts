@@ -1,0 +1,4 @@
+gdk_pixbuf_animation_ref
+gdk_pixbuf_animation_unref
+gdk_pixbuf_ref
+gdk_pixbuf_unref
