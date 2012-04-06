@@ -36,6 +36,7 @@ print "I:", package, options.version
 os.system("cp %(package)s/ %(package)s-%(version)s/ -R" % {"package": package, "version": version})
 os.system("rm -rf %(package)s-%(version)s/.git" % {"package": package, "version": version})
 os.system("rm -rf %(package)s-%(version)s/.tx" % {"package": package, "version": version})
+os.system("rm -rf %(package)s-%(version)s/distro" % {"package": package, "version": version})
 os.system("tar cf %(package)s-%(version)s.tar %(package)s-%(version)s/" % {"package": package, "version": version})
 #os.system("bzip2 %(package)s-%(version)s.tar" % {"package": package, "version": version})
 os.system("xz --compress %(package)s-%(version)s.tar" % {"package": package, "version": version})
