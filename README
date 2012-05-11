@@ -3,6 +3,9 @@ A collection of scripts to be used for aiding the development of Mate.
 - update-repos/update.py updates all the mate git repos (assuming you have
   them cloned). See the internal documentation of update.py for more info.
 
+- debian-archive/archive.py archives a directory into the *.orig.tar.xz
+  needed to build a debian package.
+  
 - deprecated-symbols contains a list of all the deprecated gtk, gdk, and
   gdk-pixbuf symbols. See wiki.mate-desktop.org/doku.ph/deprecated_code
   to find out how to use these files with egrep to get a listing of
