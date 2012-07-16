@@ -13,3 +13,6 @@ A collection of scripts to be used for aiding the development of Mate.
 
 - po-copyright/po-copyright.py backs up all the copyrights for *.po files
   into gnome-copyrights.txt.
+
+- translation-sync/translation-sync.py synchronizes a packages's 
+  translations from transifex.
