@@ -9,4 +9,7 @@ A collection of scripts to be used for aiding the development of Mate.
 - deprecated-symbols contains a list of all the deprecated gtk, gdk, and
   gdk-pixbuf symbols. See wiki.mate-desktop.org/doku.ph/deprecated_code
   to find out how to use these files with egrep to get a listing of
-  deprecated symbols
+  deprecated symbols.
+
+- po-copyright/po-copyright.py backs up all the copyrights for *.po files
+  into gnome-copyrights.txt.
