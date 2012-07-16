@@ -25,10 +25,12 @@ for f in files:
     while line.startswith("#"):
         copyright.write(line)
         line = po.readline()
-        
+
+    po.close()        
+
     copyright.write("\n\n\n\n")
 
-
+copyright.close()
 
 
 
