@@ -6,7 +6,7 @@ import sys
 HEADER_FORMAT = "========== {} ==========\n"
 
 # Make sure the correct number of args were given.
-if len(sys.argv) < 1:
+if len(sys.argv) < 2:
     print "Please specify the path to po/"
     sys.exit(1)
     
