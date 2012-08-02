@@ -89,5 +89,6 @@ subprocess.call(["git", "push"])
 # Cleanup.
 if len(os.listdir(TRANSLATIONS)) != 0:
     subprocess.call(["rm", TRANSLATIONS + "*"])
-subprocess.call(["rmdir", TRANSLATIONS])
-subprocess.call(["rmdir", "translations/"])
+
+os.rmdir(TRANSLATIONS)
+os.rmdir("translations/")

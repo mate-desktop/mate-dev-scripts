@@ -16,3 +16,7 @@ A collection of scripts to be used for aiding the development of Mate.
 
 - translation-sync/translation-sync.py synchronizes a packages's 
   translations from transifex.
+
+- fix-fsf-address/fix-fsf-address updates old fsf address.
+  fix-fsf-address/fsf.py helper script for fix-fsf-address. It or a 
+  symlink to it need to be in the same directory as fix-fsf-address.
