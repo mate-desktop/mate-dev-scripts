@@ -4,7 +4,6 @@
 # Helper script for fixlicense.sh.
 
 import os
-import shutil
 import subprocess
 import sys
 
@@ -30,5 +29,3 @@ for f in foo:
         to_edit.write(temp + "\n")
 
 to_edit.close()
-
-#shutil.move("filestotrim.mate", "..")
