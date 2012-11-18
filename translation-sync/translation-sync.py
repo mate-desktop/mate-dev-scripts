@@ -18,7 +18,7 @@ PO = "po/"
 
 parser = optparse.OptionParser()
 parser.add_option("-c", "--commit", dest="commit", help="commit changes to git")
-(options, args) parser.parse_args()
+(options, args) = parser.parse_args()
 
 # Some package names in the mate git repo don't match
 # the names on transifex. Example: mate-file-manager (git) 
