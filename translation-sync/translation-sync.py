@@ -12,8 +12,13 @@
 import os
 import sys
 import subprocess
+import optparse
 
 PO = "po/"
+
+parser = optparse.OptionParser()
+parser.add_option("-c", "--commit", dest="commit", help="commit changes to git")
+(options, args) parser.parse_args()
 
 # Some package names in the mate git repo don't match
 # the names on transifex. Example: mate-file-manager (git) 
@@ -81,10 +86,11 @@ print "Moving new translations to po/."
 for trans in trans_files:
     subprocess.call(["mv", TRANSLATIONS + trans, PO + trans[:-4] + trans[-3:]])
 
-# Commit and push the sync to git.
-subprocess.call(["git", "add", PO])
-subprocess.call(["git", "commit", "-m", "Synced translations for " + sys.argv[1].rstrip("/")])
-subprocess.call(["git", "push"])
+if options.commit is not None:    
+    # Commit and push the sync to git.
+    subprocess.call(["git", "add", PO])
+    subprocess.call(["git", "commit", "-m", "Synced translations for " + sys.argv[1].rstrip("/")])
+    subprocess.call(["git", "push"])
 
 # Cleanup.
 if len(os.listdir(TRANSLATIONS)) != 0:
