@@ -8,7 +8,6 @@ parser = optparse.OptionParser()
 parser.add_option("-v", "--version", dest="version", help="set upstream version")
 parser.add_option("-o", "--orig", dest="orig", action="store_true", help="rename file to use with debuild")
 parser.add_option("-b", "--branch", dest="branch", help="set the branch to archive")
-parser.add_option("-c", "--changeog", dest="changelog", action="store_true", help="runs git log --stat > ChangeLog")
 (options, args) = parser.parse_args()
 
 if len(args) == 0:
@@ -60,11 +59,10 @@ if options.branch:
     os.chdir("..")  
 
 # update ChangeLog
-if options.changelog:
-    os.chdir(package)
-    os.system("git log --stat > ChangeLog")
-    print "E: Updated ChangeLog."
-    os.chdir("..")
+os.chdir(package)
+os.system("git log --stat > ChangeLog")
+print "E: Updated ChangeLog."
+os.chdir("..")
 
 version = options.version
 
@@ -81,6 +79,8 @@ os.system("rm -rf %(package)s-%(version)s/" % {"package": package, "version": ve
 if options.orig:
     #os.system("mv %(package)s-%(version)s.tar.bz2 %(package)s_%(version)s.orig.tar.bz2" % {"package": package, "version": version})
     os.system("mv %(package)s-%(version)s.tar.xz %(package)s_%(version)s.orig.tar.xz" % {"package": package, "version": version})
+
+os.system("rm %(package)s/ChangeLog" % {"package": package})
 
 # change the branch back to what it was prior to running this script
 if options.branch:
