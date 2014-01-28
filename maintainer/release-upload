@@ -1,0 +1,162 @@
+#!/usr/bin/env python
+
+from __future__ import absolute_import, division, print_function, unicode_literals
+from operator import itemgetter
+import argparse
+import getpass
+import os
+import hashlib
+import paramiko
+
+SERVER = 'svr2.mate-desktop.org'
+CHECKSUMFILE = 'SHA1SUMS'
+REMOTE_PATH = '/var/www/pub/releases'
+TEST_REMOTE_PATH = '/var/www/repository/unstable/tarballs'
+
+def parse_args():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--testing', help='upload tarball to testing repository.', action='store_true')
+    parser.add_argument('--username', help='Use a different username than the one logged in.', type=str)
+    parser.add_argument('--server', help='The ssh server to connect to.', type=str)
+    parser.add_argument('--overwrite', help='Overwrite remote tar file(s).', action='store_true')
+    parser.add_argument('tarballs', metavar='tarfile', type=str, nargs='+', help='source files to upload.')
+
+    args = parser.parse_args()
+    return args
+
+def ssh_connect(server, username):
+    if not username: username = getpass.getuser()
+    sshdir = os.path.expanduser(os.path.join('~','.ssh'))
+    ssh = paramiko.SSHClient()
+    ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+    #The below fails if we use pubkey encryption in current version.
+    #ssh.load_host_keys(os.path.join(sshdir, 'known_hosts'))
+
+    try:
+        print('Trying to connect with public key encryption')
+        ssh.connect(server, username=username)
+    except paramiko.PasswordRequiredException:
+        print('Failed to connect with public key, trying with password')
+        ssh.connect(server, username=username, password=getpass.getpass())
+
+    return ssh
+
+def calcsum(fobj, algo=hashlib.sha1):
+    '''Take a file object and return the hash checksum'''
+    fobj.seek(0)
+    return algo(fobj.read()).hexdigest()
+
+def read_sumfile(fobj):
+    '''Read all existing hash checksums from file object'''
+    sums = []
+    for l in fobj:
+        checksum, tarfile = l.split()
+        package, version = tarfile.replace(".tar.xz", "").rsplit("-", 1)
+        release = version[:-2]
+        sums.append([checksum, tarfile, release, False])
+    return sums
+
+# Parse and process arguments.
+args = parse_args()
+
+if args.username: username = args.username
+else: username = None
+
+if args.server: sshserver = args.server
+else: sshserver = SERVER
+
+# Open ssh and sftp connection.
+ssh = ssh_connect(sshserver, username)
+sftp = ssh.open_sftp()
+
+checksums = {}
+
+for tarfile in args.tarballs:
+    package, version = tarfile.replace('.tar.xz', '').rsplit('-', 1)
+    release = version[:-2]
+
+    if args.testing:
+        print('{0} {1} [testing]'.format(release, tarfile))
+        remotepath = os.path.join(TEST_REMOTE_PATH, release, tarfile)
+    else:
+        print('{0} {1}'.format(release, tarfile))
+        testingpath = os.path.join(TEST_REMOTE_PATH, tarfile)
+        ssh.exec_command('rm -fv {0}'.format(testingpath))
+        remotepath = os.path.join(REMOTE_PATH, release, tarfile)
+
+    # Check if the the tarfile exists on the remote server.
+    # If not told to overwrite continue to next tarfile.
+    try:
+        if sftp.stat(remotepath) and not args.overwrite:
+            print('Remote file "{0}" exists, not overwriting'.format(tarfile))
+            continue
+    except IOError:
+        pass
+
+    sftp.put(tarfile, remotepath)
+
+    # Open remote and local tarfiles and compare checksums.
+    # Download tarfile to *considerally* speed up the checksum gen.
+    tar_temp_path = os.path.join('/tmp', tarfile)
+    sftp.get(remotepath, tar_temp_path)
+
+    # Create the file objects.
+    remote_tarfile = open(tar_temp_path, 'rb')
+    local_tarfile = open(tarfile, 'rb')
+
+    # Create the checksums.
+    print('Creating local and remote checksums....')
+    local_checksum = calcsum(local_tarfile)
+    print('Local: {0}'.format(local_checksum))
+    remote_checksum = calcsum(remote_tarfile)
+    print('Remote: {0}'.format(remote_checksum))
+
+    # Close the file objects.
+    local_tarfile.close()
+    remote_tarfile.close()
+
+    # Remove temp tar file.
+    os.system('rm {0}'.format(tar_temp_path))
+    
+    if local_checksum != remote_checksum:
+        print('***Remote and Local checksums do not match for "{0}"***'.format(tarfile))
+        exit(1) # Bail if they don't match.
+    else:
+        print('Checksums match!')
+
+    # Add new tarfile + checksum to dict so we can write it to the remote sumfile.
+    if not release in checksums: checksums[release] = []
+    checksums[release].append([remote_checksum, tarfile, release, True])
+
+if not args.testing:
+    # Write new checksum file
+    for r in checksums.keys():
+        # Make a list of all the new tar files to check against.
+        new_tars = [l[1] for l in checksums[r]]
+
+        # Read existing checksums from file
+        try:
+            sums_file = sftp.open(os.path.join(REMOTE_PATH, r, CHECKSUMFILE), 'r')
+            for l in read_sumfile(sums_file):
+                if not l[1] in new_tars:
+                    checksums[r].append(l)
+            sums_file.close()
+        except IOError:
+            print('Not reading existing checksums, file {0} not found'.format(CHECKSUMFILE))
+
+        # Sort by the filename
+        checksums[r].sort(key=itemgetter(1))
+
+        remote_checksum_file = os.path.join(REMOTE_PATH, r, CHECKSUMFILE)
+        remote_fobject = sftp.open(remote_checksum_file, 'w')
+        for l in checksums[r]:
+            csum, fname, rel, new = l
+            remote_fobject.write('{0}  {1}\n'.format(csum, fname))
+            if new: print('Adding {0} to {1}'.format(fname, CHECKSUMFILE))
+        remote_fobject.close()
+
+    # Update feed
+    ssh.exec_command("/opt/pub/update-rss")
+
+sftp.close()
+ssh.close()
