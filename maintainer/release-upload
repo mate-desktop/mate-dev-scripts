@@ -8,7 +8,6 @@ import os
 import hashlib
 import paramiko
 
-SERVER = 'svr2.mate-desktop.org'
 CHECKSUMFILE = 'SHA1SUMS'
 REMOTE_PATH = '/var/www/pub/releases'
 TEST_REMOTE_PATH = '/var/www/repository/unstable/tarballs'
@@ -17,7 +16,7 @@ def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument('--testing', help='upload tarball to testing repository.', action='store_true')
     parser.add_argument('--username', help='Use a different username than the one logged in.', type=str)
-    parser.add_argument('--server', help='The ssh server to connect to.', type=str)
+    parser.add_argument('--server', help='The ssh server to connect to.', type=str, required=True)
     parser.add_argument('--overwrite', help='Overwrite remote tar file(s).', action='store_true')
     parser.add_argument('tarballs', metavar='tarfile', type=str, nargs='+', help='source files to upload.')
 
@@ -62,11 +61,8 @@ args = parse_args()
 if args.username: username = args.username
 else: username = None
 
-if args.server: sshserver = args.server
-else: sshserver = SERVER
-
 # Open ssh and sftp connection.
-ssh = ssh_connect(sshserver, username)
+ssh = ssh_connect(args.server, username)
 sftp = ssh.open_sftp()
 
 checksums = {}
