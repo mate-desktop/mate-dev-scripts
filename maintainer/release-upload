@@ -69,7 +69,7 @@ checksums = {}
 
 for tarfile in args.tarballs:
     package, version = tarfile.replace('.tar.xz', '').rsplit('-', 1)
-    release = version[:-2]
+    release = '.'.join(version.split('.')[:2])
 
     if args.testing:
         print('{0} {1} [testing]'.format(release, tarfile))
