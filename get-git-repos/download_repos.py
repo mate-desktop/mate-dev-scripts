@@ -2,6 +2,12 @@
 
 import os
 
+# from manual: https://docs.python.org/3.6/howto/argparse.html#introducing-optional-arguments
+import argparse
+parser = argparse.ArgumentParser()
+parser.add_argument("--ssh", help="use ssh for the git clone commands", action="store_true")
+args = parser.parse_args()
+
 # MATE repos
 PKGS = ["atril",
         "caja",
@@ -48,8 +54,13 @@ PKGS = ["atril",
         "pluma",
         "python-caja"]
 
-GIT_SSH = "git clone https://github.com/mate-desktop/"
+# use ssh
+if args.ssh:
+    GIT_CLONE_CMD = "git clone git@github.com:mate-desktop/"
+# use https
+else:
+    GIT_CLONE_CMD = "git clone https://github.com/mate-desktop/"
 
 # clone all repositories one by one
 for p in PKGS:
-    os.system(GIT_SSH + p + ".git")
+    os.system(GIT_CLONE_CMD + p + ".git")
