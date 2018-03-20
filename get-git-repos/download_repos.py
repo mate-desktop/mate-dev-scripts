@@ -1,28 +1,66 @@
-#! /usr/bin/python
+#!/usr/bin/env python3
 
 import os
 
-# TODO: add options to include debian, arch, and/or fedora packages and remove them from PKGS.
+# from manual: https://docs.python.org/3.6/howto/argparse.html#introducing-optional-arguments
+import argparse
+parser = argparse.ArgumentParser()
+parser.add_argument("--ssh", help="use ssh for the git clone commands", action="store_true")
+args = parser.parse_args()
 
 # MATE repos
-PKGS = ["mate-user-share", "debian-packages", "mate-bluetooth", "mate-panel", "mate-notification",
-        "mate-keyring", "mate-indicator-applet", "libmatekeyring", "mate-window-manager",
-        "mate-session-manager", "libmatecomponent", "mate-themes", "mate-file-manager", 
-        "mate-system-tools", "fedora-packages", "archlinux-packages", "mate-common",
-        "mate-character-map", "Mate-Extra", "mate-control-center", "mate-settings-daemon",
-        "caja-dropbox", "mate-file-archiver", "mate-utils", "mate-applets", "mate-media",
-        "mate-desktop", "mate-calc", "mate-image-viewer", "mate-file-manager-open-terminal",
-        "libmatekbd", "mate-power-manager", "mate-system-monitor", "mate-text-editor", 
-        "mate-terminal", "mate-document-viewer", "mate-file-manager-gksu", "mate-mime-data",
-        "mate-vfs", "libmate", "mate-backgrounds", "mate-corba", "mate-file-manager-image-converter",
-        "mate-file-manager-sendto", "mate-menu-editor", "python-caja", "mate-conf-editor",
-        "ffmpegthumbnailer-caja", "mate-sensors-applet", "mate-netspeed", "python-mate", 
-        "python-corba", "mate-doc-utils", "mate-screensaver", "mate-polkit", "mate-menus",
-        "mate-dialogs", "mate-icon-theme", "libmateweather", "libmateui", "mate-conf",
-        "libmatecomponentui", "libmatecanvas", "mate-file-manager-share", "python-mate-desktop"]
-      
-GIT_SSH = "git clone git@github.com:mate-desktop/"
+PKGS = ["atril",
+        "caja",
+        "caja-dropbox",
+        "caja-extensions",
+        "caja-xattrs",
+        "debian-packages",
+        "engrampa",
+        "eom",
+        "libmatekbd",
+        "libmatemixer",
+        "libmateweather",
+        "marco",
+        "mate-applets",
+        "mate-backgrounds",
+        "mate-calc",
+        "mate-common",
+        "mate-control-center",
+        "mate-desktop",
+        "mate-desktop.org",
+        "mate-dev-scripts",
+        "mate-icon-theme",
+        "mate-icon-theme-faenza",
+        "mate-indicator-applet",
+        "mate-media",
+        "mate-menus",
+        "mate-netbook",
+        "mate-notification-daemon",
+        "mate-panel",
+        "mate-polkit",
+        "mate-power-manager",
+        "mate-screensaver",
+        "mate-sensors-applet",
+        "mate-session-manager",
+        "mate-settings-daemon",
+        "mate-system-monitor",
+        "mate-terminal",
+        "mate-themes",
+        "mate-university",
+        "mate-user-guide",
+        "mate-user-share",
+        "mate-utils",
+        "mozo",
+        "pluma",
+        "python-caja"]
 
-# will prompt for the users ssh key on the first git clone 
+# use ssh
+if args.ssh:
+    GIT_CLONE_CMD = "git clone git@github.com:mate-desktop/"
+# use https
+else:
+    GIT_CLONE_CMD = "git clone https://github.com/mate-desktop/"
+
+# clone all repositories one by one
 for p in PKGS:
-    os.system(GIT_SSH + p)
+    os.system(GIT_CLONE_CMD + p + ".git")
