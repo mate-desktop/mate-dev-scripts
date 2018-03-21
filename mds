@@ -1,0 +1,86 @@
+#!/usr/bin/env python3
+
+import argparse
+import sys
+import urllib.request
+import json
+import re
+import os
+
+parser = argparse.ArgumentParser()
+parser.add_argument("link", help="link of a pull request from github", type=str, default="")
+args = parser.parse_args()
+
+
+# load PR data from github API
+jsonresponse_o = None
+
+if (args.link != ""):
+    # rewrite url to API url
+    # from: "https://github.com/mate-desktop/mate-dev-scripts/pull/2"
+    # to: "https://api.github.com/repos/mate-desktop/mate-dev-scripts/pulls/2"
+    new_link = args.link.replace("https://github.com/", "https://api.github.com/repos/").replace("/pull/", "/pulls/")
+
+    # open url, use with for autoclose
+    with urllib.request.urlopen(new_link) as response:
+
+        # check status
+        if (response.status == 200):
+            # get bytes
+            jsonresponse = response.read()
+
+            # turn bytes into str (with default utf-8 encoding), then into a json object
+            jsonresponse_o = json.loads(jsonresponse.decode())
+
+        else:
+            print ("E getting pull request details. Exiting...")
+            sys.exit(1)
+
+else:
+    print ("E: No link given. Exiting...")
+    sys.exit(1)
+
+# load patch from github
+if (jsonresponse_o):
+
+    # e.g. https://github.com/mate-desktop/mate-dev-scripts/pull/2.patch
+    patch_url = jsonresponse_o['patch_url']
+
+    # use regex to get org, and repo name, patch number
+    mylist = re.sub(r'(https://github.com/mate-desktop/)([a-z-\.]*)([a-z-\./]*)([0-9]*)(.patch)', r'\2 \4', patch_url).split(" ")
+
+    # make temp dir to clone the repo to
+    dirname = mylist[0] + "-PR-" + mylist[1]
+    os.mkdir(dirname)
+
+    # clone repo to new dir
+    os.system("git clone https://github.com/mate-desktop/" + mylist[0] + ".git " + dirname)
+
+    # get patch, use with for autoclose
+    with urllib.request.urlopen(patch_url) as response:
+
+        # check status
+        if (response.status == 200):
+
+            patch = response.read().decode()
+
+            with open(dirname + ".patch", "w") as f:
+
+                for line in patch.split("\n"):
+                    f.write(line + "\n")
+
+            # apply patch
+            os.system("git apply --directory=" + dirname + " " + dirname + ".patch")
+
+            # remove patch
+            os.system("rm " + dirname + ".patch")
+
+        else:
+            print ("E getting patch for pull request. Exiting...")
+            sys.exit(1)
+
+    #print (jsonresponse_o['patch_url'])
+
+else:
+    print ("E loading json data. Exiting...")
+    sys.exit(1)
