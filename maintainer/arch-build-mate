@@ -1,0 +1,57 @@
+#!/bin/bash
+#
+# This script compiles the source code and
+# uses the same configuration parameters as archlinux's package management.
+
+topdir=`git rev-parse --show-toplevel`
+pkg=`basename $topdir`
+ncpu=`grep processor /proc/cpuinfo |wc -l`
+buildsh=$topdir/build.sh
+repo=`pacman -S -p --print-format '%r' $pkg`
+
+if [ ! -x $buildsh ];then
+    tempdir=`mktemp -d`
+    if [[ $repo = "core" || $repo = "extra" || $repo = "testing" ]]; then
+        wget -q -O $tempdir/PKGBUILD https://git.archlinux.org/svntogit/packages.git/plain/$pkg/trunk/PKGBUILD
+    else
+        wget -q -O $tempdir/PKGBUILD https://git.archlinux.org/svntogit/community.git/plain/$pkg/trunk/PKGBUILD
+    fi
+    source $tempdir/PKGBUILD
+
+    echo "#!/bin/bash" > $buildsh
+    echo "set -x" > $buildsh
+    echo pkgname=$pkgname >> $buildsh
+    echo pkgver=$pkgver >> $buildsh
+    echo "if [ ! -f docker-build ];then" >> $buildsh
+    echo "        curl -L -o docker-build https://github.com/mate-desktop/mate-dev-scripts/raw/master/travis/docker-build" >> $buildsh
+    echo "        chmod +x docker-build" >> $buildsh
+    echo "fi" >> $buildsh
+    echo "if [ ! -f configure ];then" >> $buildsh
+    echo "    ./autogen.sh" >> $buildsh
+    echo "fi" >> $buildsh
+    type build| sed '1,4d;$d' >> $buildsh
+    sed -i 's#./configure#./configure --enable-maintainer-mode#' $buildsh
+    sed -i 's/make.*/make -j'$(( ncpu+1))'/' $buildsh
+    chmod +x $buildsh
+    rm -rf $tempdir
+fi
+
+cat > $topdir/debug.h <<EOF
+/*
+   * How to use?
+   * edit source file, add the follow line:
+   * #include <debug.h>
+   * debug_print("%s", "debug here");
+   *
+ * */
+
+#include <stdio.h>
+
+#define debug_print(fmt, ARGS...)  do { printf("%s:%d:%s(): " fmt "\n", __FILE__, __LINE__, __FUNCTION__, ##ARGS); } while (0)
+
+EOF
+
+$buildsh
+if [ -f $topdir/config.h ];then
+        echo "#include <debug.h>" >> $topdir/config.h
+fi
