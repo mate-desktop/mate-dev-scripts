@@ -1,0 +1,205 @@
+#!/usr/bin/python3
+# -*- encoding:utf-8 -*-
+# vim: set filetype=python
+
+__copyright__= "Copyright (C) 2019 Wu Xiaotian <yetist@gmail.com>"
+__license__  = """
+This program is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation; either version 2 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along
+with this program; if not, write to the Free Software Foundation, Inc.,
+51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+"""
+
+import os
+import sys
+import shlex
+import stat
+import json
+import argparse
+import subprocess
+
+class Result:
+    pass
+
+def parse_args():
+    parser = argparse.ArgumentParser(description='Build source in docker')
+    parser.add_argument('-i', '--install', dest='install', action='store_true', help='install required packages')
+    parser.add_argument('-v', '--verbose', dest='verbose', action='store_true', default='false', help='verbose output')
+    parser.add_argument('--clean', dest='clean', action='store_true', default='false', help='clean docker container')
+    parser.add_argument('-n', '--name',  dest='name', action='store', default='fedora', help='docker image name')
+    parser.add_argument('-c', '--config',  dest='config', action='store', default='.docker.json', help='config file')
+    parser.add_argument('-b', '--build', dest='build', action='store', choices={'pr','make'}, default='make', help='source build type')
+
+    return parser.parse_args()
+
+def load_config (jsfile='.docker.json'):
+    cfg = {}
+    if os.path.isfile(jsfile):
+        fp = open(jsfile)
+        cfg = json.load(fp)
+        fp.close()
+    return cfg
+
+def run_cmd(command):
+    if args.verbose:
+        print(">>", command)
+    result = Result()
+    p = subprocess.Popen(shlex.split(command), stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    (stdout, stderr) = p.communicate()
+
+    result.exit_code = p.returncode
+    result.stdout = stdout.decode('utf-8')
+    result.stderr = stderr.decode('utf-8')
+    result.command = command
+
+    if p.returncode != 0:
+        print('!!! COMMAND: [%s]\n' % command)
+        print('!!! STDERR: %s\n' % result.stderr)
+        print('!!! STDOUT: %s\n' % result.stdout)
+    else:
+        print(result.stdout)
+    return result
+
+def docker_pull (image_name):
+    cmd = "docker pull %s" % args.name
+    result = run_cmd (cmd)
+    if result.exit_code != 0:
+        sys.exit(1)
+    else:
+        return result.stdout
+
+def docker_run_daemon (image_name, container_name, cmdline):
+    cmd = "docker run --name %s --volume %s:/rootdir -t -d %s %s" % (container_name, os.getcwd(), image_name, cmdline)
+    result = run_cmd (cmd)
+    if result.exit_code != 0:
+        sys.exit(1)
+    else:
+        return result.stdout
+
+def docker_exec (container_name, cmdline):
+    cmd = "docker exec -t %s %s" % (container_name, cmdline)
+    result = run_cmd (cmd)
+    if result.exit_code != 0:
+        sys.exit(1)
+    else:
+        return result.stdout
+
+def docker_is_running (container_name):
+    cmd = "docker inspect -f '{{.State.Running}}' %s" % container_name
+    result = run_cmd (cmd)
+    return result.exit_code == 0
+
+def docker_kill (container_name):
+    cmd = "docker container kill %s" % container_name
+    result = run_cmd (cmd)
+    if result.exit_code != 0:
+        sys.exit(1)
+    else:
+        return result.stdout
+
+def docker_rm (container_name):
+    cmd = "docker container rm %s" % container_name
+    result = run_cmd (cmd)
+    if result.exit_code != 0:
+        sys.exit(1)
+    else:
+        return result.stdout
+
+def system_update (distro, container_name):
+    update_cmd = ''
+    if distro == 'archlinux':
+        update_cmd = 'pacman -Syu --noconfirm'
+    elif distro == 'centos':
+        update_cmd = 'yum update -y'
+    if distro == 'fedora':
+        update_cmd = 'dnf update -y'
+    elif distro == 'ubuntu':
+        update_cmd = 'apt-get update -y'
+    if len(update_cmd) > 0:
+        docker_exec (container_name, update_cmd)
+
+def system_install (distro, container_name):
+    if 'requires' not in config.keys():
+        return
+    if distro in config['requires'].keys():
+        requires = ' '.join(config['requires'][distro])
+        if distro == 'archlinux':
+            cmd = 'pacman -Sy --noconfirm %s' % requires
+        elif distro == 'centos':
+            cmd = 'yum install -y %s' % requires
+        if distro == 'fedora':
+            cmd = 'dnf install -y %s' % requires
+        elif distro == 'ubuntu':
+            cmd = 'apt-get install -y %s' % requires
+        docker_exec (container_name, cmd)
+
+def get_repo_name():
+    cmd = 'git rev-parse --show-toplevel'
+    output = subprocess.check_output(cmd, shell=True)
+    output = output.decode("utf-8")
+    return os.path.basename(output.strip())
+
+def build_run (container_name, shfile, cmdlines):
+    fp = open(shfile, 'w+')
+    fp.write('#!/bin/bash\n\n')
+    fp.write('cd /rootdir\n')
+    fp.write(' && '.join(cmdlines))
+    fp.write('\n')
+    fp.close()
+    os.chmod(shfile, stat.S_IRWXU |stat.S_IXGRP|stat.S_IXOTH)
+    docker_exec (container_name, os.path.join('/rootdir/', shfile))
+
+def source_prebuild(container_name):
+    if 'prebuild' not in config.keys():
+        return
+    build_run (container_name, 'src_prebuild', config['prebuild'])
+
+def source_build(container_name):
+    cmdlines = []
+    if 'configure' in config.keys():
+        configure = ' '.join(config['configure'])
+    else:
+        configure = '--prefix=/usr'
+
+    if os.path.isfile('./configure'):
+        cmdlines.append('./configure ' + configure)
+    elif os.path.isfile('./autogen.sh'):
+        cmdlines.append('./autogen.sh ' + configure)
+    cmdlines.append('make')
+    build_run (container_name, 'src_build', cmdlines)
+
+    # run make distcheck
+    if 'distcheck' in config.keys() and config['distcheck']:
+        build_run (container_name, 'src_distcheck', ['make distcheck'])
+
+if __name__=="__main__":
+    args = parse_args()
+    config = load_config(args.config)
+
+    distro = args.name.split(':')[0]
+    if distro.find('/') > 0:
+        distro = distro.rsplit('/',1)[-1]
+    container_name = "%s-%s-build" % (get_repo_name(), distro)
+
+    if args.install:
+        docker_pull(args.name)
+        if not docker_is_running (container_name):
+            docker_run_daemon(args.name, container_name, '/bin/bash')
+        system_update(distro, container_name)
+        system_install(distro, container_name)
+
+    if args.build:
+        source_prebuild(container_name)
+        source_build(container_name)
+        if args.clean:
+            docker_kill (container_name)
+            docker_rm (container_name)
