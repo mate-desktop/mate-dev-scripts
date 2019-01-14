@@ -210,6 +210,6 @@ if __name__=="__main__":
     if args.build:
         source_prebuild(container_name)
         source_build(container_name)
-        if docker_is_running (container_name) and args.clean:
+        if args.clean and docker_is_running (container_name):
             docker_kill (container_name)
             docker_rm (container_name)
