@@ -33,8 +33,8 @@ class Result:
 def parse_args():
     parser = argparse.ArgumentParser(description='Build source in docker')
     parser.add_argument('-i', '--install', dest='install', action='store_true', help='install required packages')
-    parser.add_argument('-v', '--verbose', dest='verbose', action='store_true', default='false', help='verbose output')
-    parser.add_argument('--clean', dest='clean', action='store_true', default='false', help='clean docker container')
+    parser.add_argument('-v', '--verbose', dest='verbose', action='store_true', help='verbose output')
+    parser.add_argument('-C', '--clean', dest='clean', action='store_true', help='clean docker container')
     parser.add_argument('-n', '--name',  dest='name', action='store', default='fedora', help='docker image name')
     parser.add_argument('-c', '--config',  dest='config', action='store', default='.docker.json', help='config file')
     parser.add_argument('-b', '--build', dest='build', action='store', choices={'pr','make'}, default='make', help='source build type')
@@ -200,6 +200,6 @@ if __name__=="__main__":
     if args.build:
         source_prebuild(container_name)
         source_build(container_name)
-        if args.clean:
+        if docker_is_running (container_name) and args.clean:
             docker_kill (container_name)
             docker_rm (container_name)
