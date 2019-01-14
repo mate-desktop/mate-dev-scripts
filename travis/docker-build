@@ -30,6 +30,13 @@ import subprocess
 class Result:
     pass
 
+class bcolors:
+    CEND      = '\33[0m'
+    CRED    = '\33[31m'
+    CBOLD     = '\33[1m'
+    CGREEN  = '\33[32m'
+    CBLUE   = '\33[34m'
+
 def parse_args():
     parser = argparse.ArgumentParser(description='Build source in docker')
     parser.add_argument('-i', '--install', dest='install', action='store_true', help='install required packages')
@@ -51,7 +58,8 @@ def load_config (jsfile='.docker.json'):
 
 def run_cmd(command):
     if args.verbose:
-        print(">>", command)
+        print(bcolors.CBLUE + ">>> [%s] <<<\n" % command + bcolors.CEND)
+
     result = Result()
     p = subprocess.Popen(shlex.split(command), stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     (stdout, stderr) = p.communicate()
@@ -62,9 +70,11 @@ def run_cmd(command):
     result.command = command
 
     if p.returncode != 0:
-        print('!!! COMMAND: [%s]\n' % command)
-        print('!!! STDERR: %s\n' % result.stderr)
-        print('!!! STDOUT: %s\n' % result.stdout)
+        print(bcolors.CGREEN + '!!! RUN [%s]:' % command + bcolors.CEND)
+        if len(result.stderr) > 0:
+            print(bcolors.CRED + '!!! ERROR: ' + bcolors.CEND + '%s\n' % result.stderr)
+        if len(result.stdout) > 0:
+            print('!!! OUTPUT: %s\n' % result.stdout)
     else:
         print(result.stdout)
     return result
