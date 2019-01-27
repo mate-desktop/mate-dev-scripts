@@ -1,110 +1,231 @@
 # README
 
-`docker-build`: This is the common build script for mate-desktop to use travis-ci.
+`docker-build` is a generic script that using the Docker container to build for
+the different distributions. It requires a configuration file to work with.
+By default, a YAML file called `.docker-build.yml` is used.
 
-# Howto use
+# Usage
 
-Every mate-desktop project should create `.travis.yml` and `.docker.json` files in that top directry.
-
-
-## `.travis.yml`
-
-This file used to setup travis.
-
-In `before_install` section, it downloads the `docker-build` file, and sets executable permissions.
-
-In `install` section, download the docker image of the linux distro, create the docker container, update the system and install the dependency packages according to the settings of `.docker.json` file.
-
-In `env` section, multiple different linux distributions can be set up for compille testing.
-
-Here is an example:
+## Command line usage
 
 ```
+usage: docker-build [-h] [-i] [-v] [-C] [-n NAME] [-c CONFIG]
+                    [-b {meson,autotools}]
+
+Compile the software in a Docker container
+
+optional arguments:
+  -h, --help            show this help message and exit
+  -i, --install         Install dependent packages before compilation.
+  -v, --verbose         Enable verbose output
+  -C, --clean           Clean up the Docker container after completion.
+  -n NAME, --name NAME  Docker image name, default is "fedora". Can write a
+                        tag, such as "ubuntu:18.10".
+  -c CONFIG, --config CONFIG
+                        Configuration file path, default is ".docker-
+                        build.yml".
+  -b {meson,autotools}, --build {meson,autotools}
+                        The build type, can be "autotools" or "meson".
+```
+
+## Steps by Step
+
+Make sure the docker works in the system and don't see the error output by
+running the `docker images` command.
+
+1. Go to the source directory, for example `mate-menus`.
+
+2. Create a `.docker-build.yml` file with the following content:
+
+```
+requires:
+  ubuntu:
+    - mate-common
+    - intltool
+    - python
+```
+
+If there are more dependencies, you need to add them.
+
+3. Install the dependency package in the Docker container of `ubuntu 18.10`.
+
+Run the command:
+
+```
+  docker-build --name ubuntu:18.10 --install
+```
+
+It will download the ubuntu 18.10 docker image, run it and install the
+dependencies in the container.
+
+The dependency package is written in the configuration file in the 2nd step.
+
+4. Start building with autotools by running the follow command:
+
+```
+  docker-build --name ubuntu:18.10 --verbose --build autotools
+```
+
+You may see an error, usually because of a lack of dependencies, you can try
+adding it in `.docker-build.yml` and run it again.
+
+If you want to delete the container after it's done, add the clean parameter:
+```
+  docker-build --name ubuntu:18.10 --verbose --clean --build autotools
+```
+
+# Configuration file format
+
+`docker-build` requires a configuration file to run, which can be saved in JSON
+or YAML formats with similar structures, default use YAML format, called
+`.docker-build.yml`.
+
+If you want to use a different configuration file name, please use the
+`docker-build --config another_config_file`.
+
+In the configuration file, the following configuration items are included:
+1. `requires`: The compile dependency packages for different Linux distro,
+create sub-key `ubuntu` for ubuntu distro.
+2. `configures`: The compilation parameters to be used for `./configure` and
+`meson`, create sub-key `autotools` for autotools, sub-key `meson` for meson.
+3. `before_scripts`: The commands to be executed before build.
+4. `after_scripts`: The commands to be executed after build, The *BUILD_TYPE*
+environment variable can be used to determine whether the build type is
+'autotools' or 'meson'.
+5. `variables`: The environment variables to be used when building.
+
+In the configuration file, only `requires` is required, others are optional.
+
+For example:
+
+```
+requires:
+  ubuntu:
+    - mate-common
+    - intltool
+    - python
+  fedora:
+    - dbus-glib-devel
+    - desktop-file-utils
+    - git
+    - libcanberra-devel
+    - libnotify-devel
+    - libwnck3-devel
+    - mate-common
+    - mate-desktop-devel
+  centos:
+    - dbus-glib-devel
+    - desktop-file-utils
+    - libcanberra-devel
+    - libnotify-devel
+    - libwnck3-devel
+    - mate-common
+    - mate-desktop-devel
+before_scripts:
+  - pwd
+  - env
+variables:
+  - CFLAGS="-Wall"
+configures:
+  autotools:
+    - --prefix=/usr
+    - --enable-gtk-doc
+  meson:
+    - --prefix /usr
+    - -Denable-gtk-doc=true
+after_scripts:
+  - if [ "$BUILD_TYPE" = "meson" ]; then meson test; else make test; fi
+  - if [ "$BUILD_TYPE" = "meson" ]; then ninja dist; else make distcheck; fi
+```
+
+# Travis CI
+
+Travis CI provides Continuous Integration (CI). It binds the project on Github
+and will automatically fetch as long as there is new code. Then, provide a
+runtime environment, perform tests, complete the build, and deploy to the server.
+
+Travis CI only supports Github and does not support other code hosting services.
+This means that you must meet the following conditions in order to use Travis CI.
+
+- Have a GitHub account
+- There is a project below this account
+- There are runnable code in the project.
+- The project also includes build or test scripts
+
+## Start Travis CI
+
+1. First, visit the official website travis-ci.org, click on the profile picture
+in the upper right corner, and log in to Travis CI using your Github account.
+
+Travis will list all of your warehouses on Github and the organizations you
+belong to. At this point, select the warehouse you need Travis to build for you,
+and open the switch next to the warehouse. Once a repository is activated,
+Travis will listen for all changes to the repository.
+
+
+2. Write `.travis.yml`
+
+Travis requires a `.travis.yml` file under the root of the project. This is a
+configuration file that specifies the behavior of Travis. The file must be saved
+in the Github repository. Once the code repository has a new Commit, Travis will
+go to the file and execute the commands.
+
+This file is in YAML format. Below is a `.travis.yml` file for the simplest
+Python project.
+
+```
+language: python
+script: true
+```
+
+See the documentation for more details: https://docs.travis-ci.com/
+
+# Run docker-build on Travis CI
+
+1. First need Travis CI to work in your repo.
+
+2. Create a `.travis.yml` file with the following content:
+
+```
+dist: xenial
 sudo: required
+language: bash
 services:
   - docker
 
 before_install:
-  - curl -L https://raw.githubusercontent.com/mate-desktop/mate-dev-scripts/travis/travis/docker-build > docker-build
+  - curl -L -o docker-build https://github.com/yetist/mate-dev-scripts/raw/travis/travis/docker-build
   - chmod +x docker-build
 
 install:
   - ./docker-build --name ${DISTRO} --install
 
 script:
-  - 'if [ "$TRAVIS_PULL_REQUEST" != "false" ]; then ./docker-build --name ${DISTRO} --build pr; fi'
-  - 'if [ "$TRAVIS_PULL_REQUEST" = "false" ];  then ./docker-build --name ${DISTRO} --build test; fi'
+  - ./docker-build --name ${DISTRO} --verbose --build autotools
 
 env:
+  - DISTRO="ubuntu:18.10"
+```
+
+If the project is built using `meson`, modify the command in the `script` like this:
+```
+  - ./docker-build --name ${DISTRO} --verbose --build meson 
+```
+
+If you want to support more distro, add a similar line to env :
+
+```
+env:
+  - DISTRO="base/archlinux"
+  - DISTRO="debian:sid"
   - DISTRO="fedora:29"
-#  - DISTRO="centos:7"
-#  - DISTRO="ubuntu:18.10"
-
-#deploy:
-#  provider: releases
-#  api_key: "GITHUB OAUTH TOKEN"
-#  file_glob: true
-#  file: mate-notification-daemon-1.*.tar.xz
-#  skip_cleanup: true
-#  on:
-#    tags: true
+  - DISTRO="ubuntu:18.10"
 ```
 
-## `.docker.json`
+3. Create a `.docker-build.yml`
 
-In `.docker.json` file, we can set the compile dependency packages for different Linux distro,
-set compile parameters, set whether to run `make distcheck`.
+Please refer to the above description for the content.
 
-In `requires` key, set the compile dependency packages for different Linux distro.
-
-The `configure`, `prebuild` and `distcheck` keys are optional.
-
-If no `configure`, will use `--prefix=/usr` for compile.
-
-If no `prebuild`, ignored it. The `prebuild` is not very useful, just used for some project's api changed, and the distro dose not released the packages.
-so, before build the current repo, that project should be build and install to the system first.
-
-If no `distcheck`, or `distcheck` is false, ignored it, if `distcheck` is true, run `make distcheck` after `make` finished.
-
-```
-{
-  "requires" : {
-    "ubuntu" : [
-          "mate-common",
-          "intltool",
-          "python"
-    ],
-    "fedora" : [
-          "dbus-glib-devel",
-          "desktop-file-utils",
-          "git",
-          "libcanberra-devel",
-          "libnotify-devel",
-          "libwnck3-devel",
-          "mate-common",
-          "mate-desktop-devel"
-    ],
-    "centos" : [
-          "dbus-glib-devel",
-          "desktop-file-utils",
-          "libcanberra-devel",
-          "libnotify-devel",
-          "libwnck3-devel",
-          "mate-common",
-          "mate-desktop-devel"
-    ],
-    "prebuild" : [
-          "git clone https://github.com/mate-desktop/mate-menus.git mate-menus",
-          "cd mate-menus",
-          "./autogen.sh --prefix=/usr",
-          "make",
-          "make install"
-    ],
-    "configure" : [
-          "--prefix=/usr",
-          "--enable-gtk-doc",
-          "..."
-  },
-    "distcheck" : true
-}
-```
+If you don't want to add this file to your git repo, you can merge the contents
+of this file into a `.travis.yml` file and modify the `.travis.yml` file to add
+the `--config .travis.yml` parameter to the `docker-build` command.
