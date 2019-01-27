@@ -132,7 +132,7 @@ def system_update (distro, container_name):
         update_cmd = 'yum update -y'
     if distro == 'fedora':
         update_cmd = 'dnf update -y'
-    elif distro == 'ubuntu':
+    elif distro == 'debian' or distro == 'ubuntu':
         update_cmd = 'apt-get update -y'
     if len(update_cmd) > 0:
         docker_exec (container_name, update_cmd)
@@ -148,7 +148,7 @@ def system_install (distro, container_name):
             cmd = 'yum install -y %s' % requires
         if distro == 'fedora':
             cmd = 'dnf install -y %s' % requires
-        elif distro == 'ubuntu':
+        elif distro == 'debian' or distro == 'ubuntu':
             cmd = 'apt-get install -y %s' % requires
         docker_exec (container_name, cmd)
 
