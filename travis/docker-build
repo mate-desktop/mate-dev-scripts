@@ -261,9 +261,9 @@ if __name__=="__main__":
         system_install(distro, container_name)
 
     if args.build:
-        before_build_script(container_name)
+        before_scripts(container_name)
         source_build(args.build, container_name)
-        after_build_script(container_name)
+        after_scripts(container_name)
         if args.clean and docker_is_running (container_name):
             docker_kill (container_name)
             docker_rm (container_name)
