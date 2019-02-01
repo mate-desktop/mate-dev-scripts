@@ -30,6 +30,37 @@ import subprocess
 class Result:
     pass
 
+class ShortIO(object):
+    def __init__ (self, max_lines=0):
+        self.head_lines = int(max_lines/2)
+        self.tail_lines = int(max_lines - self.head_lines)
+        self.line_count = 0
+        self.tail_list = []
+
+    def print(self, msg):
+        if self.head_lines <= 0 or self.tail_lines <= 0:
+            print(msg, end='', flush=True)
+            return
+        if self.line_count < self.head_lines:
+            print(msg, end='', flush=True)
+        else:
+            print('.', end='', flush=True)
+            self.tail_list.append(msg)
+            if len(self.tail_list) > self.tail_lines:
+                self.tail_list = self.tail_list[self.tail_lines:]
+        self.line_count += 1
+
+    def end(self):
+        if self.head_lines <= 0 or self.tail_lines <= 0:
+            return
+        result = self.line_count - self.head_lines - self.tail_lines
+        if result > 0:
+            print(' Hidden %d lines of output here ......' % result)
+        else:
+            print()
+        for line in self.tail_list:
+            print(line, end='', flush=True)
+
 class bcolors:
     CEND    = '\33[0m'
     CRED    = '\33[31m'
@@ -56,6 +87,7 @@ def parse_args():
     parser.add_argument('-v', '--verbose', dest='verbose', action='store_true', help='Enable verbose output')
     parser.add_argument('-C', '--clean', dest='clean', action='store_true', help='Clean up the Docker container after completion.')
     parser.add_argument('-n', '--name',  dest='name', action='store', default='fedora', help='Docker image name, default is "fedora". Can write a tag, such as "ubuntu:18.10".')
+    parser.add_argument('-l', '--lines',  dest='lines', action='store', type=int, default=100, help='The maximum number of lines to output, default is 100. Set to 0 or less than 0 means no limit. If --verbose is enabled, the value is ignored as unlimited.')
     parser.add_argument('-c', '--config',  dest='config', action='store', default='.docker-build.yml', help='Configuration file path, default is ".docker-build.yml".')
     parser.add_argument('-b', '--build', dest='build', action='store', choices={'autotools','meson'}, help='The build type, can be "autotools" or "meson".')
 
@@ -72,13 +104,18 @@ def load_config (cfgfile):
         fp.close()
     return cfg
 
-def run_cmd(command):
+def run_cmd(command, verbose=True, max_lines=0):
     print_cmdline(command)
 
     result = Result()
+    if verbose:
+        io = ShortIO(-1)
+    else:
+        io = ShortIO(max_lines)
     p = subprocess.Popen(shlex.split(command), stdout=subprocess.PIPE, bufsize=1)
     for line in iter(p.stdout.readline, b''):
-        print(line.decode('utf-8'), end='', flush=True)
+        io.print(line.decode('utf-8'))
+    io.end()
     p.stdout.close()
     p.wait()
 
@@ -99,9 +136,9 @@ def docker_run_daemon (image_name, container_name, cmdline):
     if result.exit_code != 0:
         sys.exit(1)
 
-def docker_exec (container_name, cmdline):
+def docker_exec (container_name, cmdline, verbose=True, max_lines=0):
     cmd = "docker exec -t %s %s" % (container_name, cmdline)
-    result = run_cmd (cmd)
+    result = run_cmd (cmd, verbose, max_lines)
     if result.exit_code != 0:
         sys.exit(1)
 
@@ -135,11 +172,14 @@ def system_update (distro, container_name):
     if len(update_cmd) > 0:
         docker_exec (container_name, update_cmd)
 
-def system_install (distro, container_name):
+def system_install (distro, container_name, verbose=False, max_lines=0):
     if 'requires' not in config.keys():
         return
     if distro in config['requires'].keys():
-        requires = ' '.join(config['requires'][distro])
+        distro_requires = config['requires'][distro]
+        if not distro_requires:
+            return
+        requires = ' '.join(distro_requires)
         if distro == 'archlinux':
             cmd = 'pacman -Sy --noconfirm %s' % requires
         elif distro == 'centos':
@@ -148,7 +188,7 @@ def system_install (distro, container_name):
             cmd = 'dnf install -y %s' % requires
         elif distro == 'debian' or distro == 'ubuntu':
             cmd = 'apt-get install -y %s' % requires
-        docker_exec (container_name, cmd)
+        docker_exec (container_name, cmd, verbose, max_lines)
 
 def get_repo_name():
     cmd = 'git rev-parse --show-toplevel'
@@ -258,12 +298,13 @@ if __name__=="__main__":
         if not docker_is_running (container_name):
             docker_run_daemon(args.name, container_name, '/bin/bash')
         system_update(distro, container_name)
-        system_install(distro, container_name)
+        system_install(distro, container_name, args.verbose, args.lines)
 
     if args.build:
         before_scripts(container_name)
         source_build(args.build, container_name)
         after_scripts(container_name)
-        if args.clean and docker_is_running (container_name):
-            docker_kill (container_name)
-            docker_rm (container_name)
+
+    if args.clean and docker_is_running (container_name):
+        docker_kill (container_name)
+        docker_rm (container_name)
