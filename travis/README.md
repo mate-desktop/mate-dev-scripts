@@ -9,7 +9,7 @@ By default, a YAML file called `.docker-build.yml` is used.
 ## Command line usage
 
 ```
-usage: docker-build [-h] [-i] [-v] [-C] [-n NAME] [-c CONFIG]
+usage: docker-build [-h] [-i] [-v] [-C] [-n NAME] [-l LINES] [-c CONFIG]
                     [-b {meson,autotools}]
 
 Compile the software in a Docker container
@@ -21,9 +21,12 @@ optional arguments:
   -C, --clean           Clean up the Docker container after completion.
   -n NAME, --name NAME  Docker image name, default is "fedora". Can write a
                         tag, such as "ubuntu:18.10".
+  -l LINES, --lines LINES
+                        The maximum number of lines to output, default is 100.
+                        Set to 0 or less than 0 means no limit. If --verbose
+                        is enabled, the value is ignored as unlimited.
   -c CONFIG, --config CONFIG
-                        Configuration file path, default is ".docker-
-                        build.yml".
+                        Configuration file path, default is ".docker-build.yml".
   -b {meson,autotools}, --build {meson,autotools}
                         The build type, can be "autotools" or "meson".
 ```
@@ -69,9 +72,9 @@ The dependency package is written in the configuration file in the 2nd step.
 You may see an error, usually because of a lack of dependencies, you can try
 adding it in `.docker-build.yml` and run it again.
 
-If you want to delete the container after it's done, add the clean parameter:
+If you want to delete the container, run the follow command:
 ```
-  docker-build --name ubuntu:18.10 --verbose --clean --build autotools
+  docker-build --name ubuntu:18.10 --clean
 ```
 
 # Configuration file format
