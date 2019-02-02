@@ -190,7 +190,8 @@ def get_repo_name():
     return os.path.basename(output.strip())
 
 def build_run(script, cmdline, opts):
-    fp = open(script, 'w+')
+    shpath = os.path.join(opts['host_dir'], script)
+    fp = open(shpath, 'w+')
     fp.write('#!/bin/bash\n\n')
     if args.verbose:
         fp.write('set -x\n\n')
@@ -211,7 +212,7 @@ def build_run(script, cmdline, opts):
     fp.write(' && '.join(cmdline))
     fp.write('\n')
     fp.close()
-    os.chmod(script, stat.S_IRWXU |stat.S_IXGRP|stat.S_IXOTH)
+    os.chmod(shpath, stat.S_IRWXU |stat.S_IXGRP|stat.S_IXOTH)
     docker_exec(os.path.join('/rootdir/', script), opts)
 
 def setup_options(args, config):
