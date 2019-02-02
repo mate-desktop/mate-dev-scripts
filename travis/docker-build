@@ -133,10 +133,10 @@ def docker_pull (opts):
 
 def docker_run_daemon (command, opts):
     container_name = opts['container_name']
-    start_dir = opts['start_dir']
+    host_dir = opts['host_dir']
     image_name = "%s:%s" % (opts['distro_name'], opts['distro_version'])
 
-    cmd = "docker run --name %s --volume %s:/rootdir -t -d %s %s" % (container_name, start_dir, image_name, command)
+    cmd = "docker run --name %s --volume %s:/rootdir -t -d %s %s" % (container_name, host_dir, image_name, command)
     result = run_cmd (cmd, opts)
     if result.exit_code != 0:
         sys.exit(1)
@@ -203,7 +203,7 @@ def build_run(script, cmdline, opts):
 
     # export option setup as envirment variables
     for k, v in opts.items():
-        if k in ['config', 'distro_upgrade', 'install_command']:
+        if k in ['config', 'distro_upgrade', 'install_command', 'host_dir']:
             continue
         fp.write ("export %s=%s\n" % (k.upper(), str(v).lower()))
 
@@ -220,6 +220,7 @@ def setup_options(args, config):
             'distro_name' : 'fedora',
             'distro_version' : 'latest',
             'max_lines' : args.lines,
+            'host_dir' : os.path.dirname(os.path.abspath(__file__)),
             'start_dir' : '/rootdir',
             'build_dir' : '/rootdir',
             'verbose' : args.verbose,
@@ -266,7 +267,6 @@ def run_scripts(opts, stage = 'before'):
     script_name = stage + '_scripts'
     if script_name not in opts['config'].keys():
         return
-
     build_run (script_name, opts['config'][script_name], opts)
 
 def autotools_build (opts):
