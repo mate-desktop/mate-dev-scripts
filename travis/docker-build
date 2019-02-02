@@ -104,14 +104,14 @@ def load_config (cfgfile):
         fp.close()
     return cfg
 
-def run_cmd(command, verbose=True, max_lines=0):
+def run_cmd(command, opts):
     print_cmdline(command)
 
     result = Result()
-    if verbose:
+    if opts['verbose']:
         io = ShortIO(-1)
     else:
-        io = ShortIO(max_lines)
+        io = ShortIO(opts['max_lines'])
     p = subprocess.Popen(shlex.split(command), stdout=subprocess.PIPE, bufsize=1)
     for line in iter(p.stdout.readline, b''):
         io.print(line.decode('utf-8'))
@@ -124,71 +124,64 @@ def run_cmd(command, verbose=True, max_lines=0):
 
     return result
 
-def docker_pull (image_name):
-    cmd = "docker pull %s" % args.name
-    result = run_cmd (cmd)
+def docker_pull (opts):
+    image_name = "%s:%s" % (opts['distro_name'], opts['distro_version'])
+    cmd = "docker pull %s" % image_name
+    result = run_cmd (cmd, opts)
     if result.exit_code != 0:
         sys.exit(1)
 
-def docker_run_daemon (image_name, container_name, cmdline):
-    cmd = "docker run --name %s --volume %s:/rootdir -t -d %s %s" % (container_name, os.getcwd(), image_name, cmdline)
-    result = run_cmd (cmd)
+def docker_run_daemon (command, opts):
+    container_name = opts['container_name']
+    start_dir = opts['start_dir']
+    image_name = "%s:%s" % (opts['distro_name'], opts['distro_version'])
+
+    cmd = "docker run --name %s --volume %s:/rootdir -t -d %s %s" % (container_name, start_dir, image_name, command)
+    result = run_cmd (cmd, opts)
     if result.exit_code != 0:
         sys.exit(1)
 
-def docker_exec (container_name, cmdline, verbose=True, max_lines=0):
-    cmd = "docker exec -t %s %s" % (container_name, cmdline)
-    result = run_cmd (cmd, verbose, max_lines)
+def docker_exec (command, opts):
+    container_name = opts['container_name']
+    cmd = "docker exec -t %s %s" % (container_name, command)
+    result = run_cmd (cmd, opts)
     if result.exit_code != 0:
         sys.exit(1)
 
-def docker_is_running (container_name):
-    cmd = "docker inspect -f '{{.State.Running}}' %s" % container_name
-    result = run_cmd (cmd)
+def docker_is_running (opts):
+    cmd = "docker inspect -f '{{.State.Running}}' %s" % opts['container_name']
+    result = run_cmd (cmd, opts)
     return result.exit_code == 0
 
-def docker_kill (container_name):
-    cmd = "docker container kill %s" % container_name
-    result = run_cmd (cmd)
+def docker_kill (opts):
+    cmd = "docker container kill %s" % opts['container_name']
+    result = run_cmd (cmd, opts)
     if result.exit_code != 0:
         sys.exit(1)
 
-def docker_rm (container_name):
-    cmd = "docker container rm %s" % container_name
-    result = run_cmd (cmd)
+def docker_rm (opts):
+    cmd = "docker container rm %s" % opts['container_name']
+    result = run_cmd (cmd, opts)
     if result.exit_code != 0:
         sys.exit(1)
 
-def system_update (distro, container_name):
-    update_cmd = ''
-    if distro == 'archlinux':
-        update_cmd = 'pacman -Syu --noconfirm'
-    elif distro == 'centos':
-        update_cmd = 'yum update -y'
-    if distro == 'fedora':
-        update_cmd = 'dnf update -y'
-    elif distro == 'debian' or distro == 'ubuntu':
-        update_cmd = 'apt-get update -y'
-    if len(update_cmd) > 0:
-        docker_exec (container_name, update_cmd)
+# The follow commands running in the docker.
+def system_update (opts):
+    docker_exec (opts['distro_upgrade'], opts)
 
-def system_install (distro, container_name, verbose=False, max_lines=0):
-    if 'requires' not in config.keys():
+def system_install (opts):
+    if 'requires' not in opts['config'].keys():
         return
-    if distro in config['requires'].keys():
-        distro_requires = config['requires'][distro]
-        if not distro_requires:
-            return
-        requires = ' '.join(distro_requires)
-        if distro == 'archlinux':
-            cmd = 'pacman -Sy --noconfirm %s' % requires
-        elif distro == 'centos':
-            cmd = 'yum install -y %s' % requires
-        if distro == 'fedora':
-            cmd = 'dnf install -y %s' % requires
-        elif distro == 'debian' or distro == 'ubuntu':
-            cmd = 'apt-get install -y %s' % requires
-        docker_exec (container_name, cmd, verbose, max_lines)
+
+    distro_name = opts['distro_name']
+    if distro_name in opts['config']['requires'].keys():
+        distro_requires = opts['config']['requires'][distro_name]
+        if distro_requires:
+            requires = ' '.join(distro_requires)
+        else:
+            requires = 'gcc git make'
+        cmd = '%s %s' % (opts['install_command'], requires)
+        docker_exec (cmd, opts)
 
 def get_repo_name():
     cmd = 'git rev-parse --show-toplevel'
@@ -196,46 +189,90 @@ def get_repo_name():
     output = output.decode("utf-8")
     return os.path.basename(output.strip())
 
-def build_run (container_name, shfile, cmdlines, variables=[]):
-    fp = open(shfile, 'w+')
+def build_run(script, cmdline, opts):
+    fp = open(script, 'w+')
     fp.write('#!/bin/bash\n\n')
     if args.verbose:
         fp.write('set -x\n\n')
-    for var in variables:
-        if var.find('=') > 0:
-            fp.write ("export %s\n" % var)
+
+    # Setup envirment variables
+    if 'variables' in opts['config'].keys():
+        for var in opts['config']['variables']:
+            if var.find('=') > 0:
+                fp.write ("export %s\n" % var)
+
+    # export option setup as envirment variables
+    for k, v in opts.items():
+        if k in ['config', 'distro_upgrade', 'install_command']:
+            continue
+        fp.write ("export %s=%s\n" % (k.upper(), str(v).lower()))
+
     fp.write('cd /rootdir\n')
-    fp.write(' && '.join(cmdlines))
+    fp.write(' && '.join(cmdline))
     fp.write('\n')
     fp.close()
-    os.chmod(shfile, stat.S_IRWXU |stat.S_IXGRP|stat.S_IXOTH)
-    docker_exec (container_name, os.path.join('/rootdir/', shfile))
+    os.chmod(script, stat.S_IRWXU |stat.S_IXGRP|stat.S_IXOTH)
+    docker_exec(os.path.join('/rootdir/', script), opts)
 
-def before_scripts(container_name):
-    if 'before_scripts' not in config.keys():
+def setup_options(args, config):
+    option = {
+            'build_type' : 'autotools',
+            'distro_name' : 'fedora',
+            'distro_version' : 'latest',
+            'max_lines' : args.lines,
+            'start_dir' : '/rootdir',
+            'build_dir' : '/rootdir',
+            'verbose' : args.verbose,
+            'config' : config,
+            }
+
+    # parse distro
+    distro = args.name.split(':')
+    distro_name = distro[0]
+    if distro_name.find('/') > 0:
+        distro_name = distro_name.rsplit('/',1)[-1]
+
+    option['distro_name'] = distro_name
+    option['container_name'] = "%s-%s-build" % (get_repo_name(), option['distro_name'])
+    if distro_name == 'archlinux':
+        option['distro_upgrade'] = 'pacman -Syu --noconfirm'
+        option['install_command'] = 'pacman -Sy --noconfirm'
+    elif distro_name == 'centos':
+        option['distro_upgrade'] = 'yum update -y'
+        option['install_command'] = 'yum install -y'
+    if distro_name == 'fedora':
+        option['distro_upgrade'] = 'dnf update -y'
+        option['install_command'] = 'dnf install -y'
+    elif distro_name == 'debian' or distro_name == 'ubuntu':
+        option['distro_upgrade'] = 'apt-get update -y'
+        option['install_command'] = 'apt-get install -y'
+    else:
+        url = 'https://github.com/mate-desktop/mate-dev-scripts/issues/new'
+        msg = 'The "%s" distro is not supported, please visit "%s" to create a new issue.' % (distro_name, url)
+        print_error(msg)
+        sys.exit(1)
+
+    if len(distro) > 1:
+        option['distro_version'] = distro[-1]
+
+    if args.build == 'meson':
+        option['build_type'] = 'meson'
+        option['build_dir'] = os.path.join(option['start_dir'], '_build')
+
+    return option
+
+# Run in docker
+def run_scripts(opts, stage = 'before'):
+    script_name = stage + '_scripts'
+    if script_name not in opts['config'].keys():
         return
 
-    env = ['BUILD_TYPE=autotools']
-    if args.build == 'meson':
-        env = ['BUILD_TYPE=meson']
+    build_run (script_name, opts['config'][script_name], opts)
 
-    build_run (container_name, 'before_scripts', config['before_scripts'], env)
-
-def after_scripts(container_name):
-    if 'after_scripts' not in config.keys():
-        return
-
-    env = ['BUILD_TYPE=autotools']
-    if args.build == 'meson':
-        config['after_scripts'].insert(0, "cd _build")
-        env = ['BUILD_TYPE=meson']
-
-    build_run (container_name, 'after_scripts', config['after_scripts'], env)
-
-def autotools_build (container_name):
+def autotools_build (opts):
     configures = '--prefix=/usr'
-    if 'configures' in config.keys() and 'autotools' in config['configures'].keys():
-        configures = ' '.join(config['configures']['autotools'])
+    if 'configures' in opts['config'].keys() and 'autotools' in opts['config']['configures'].keys():
+        configures = ' '.join(opts['config']['configures']['autotools'])
 
     cmdlines = []
     if os.path.isfile('./autogen.sh'):
@@ -245,31 +282,25 @@ def autotools_build (container_name):
 
     if os.path.isfile('./autogen.sh') or os.path.isfile('./configure'):
         cmdlines.append('make')
-        if 'variables' in config.keys():
-            build_run (container_name, 'src_build', cmdlines, config['variables'])
-        else:
-            build_run (container_name, 'src_build', cmdlines)
+        build_run ('src_build', cmdlines, opts)
 
-def meson_build (container_name):
+def meson_build (opts):
     configures = '--prefix /usr'
-    if 'configures' in config.keys() and 'meson' in config['configures'].keys():
-        configures = ' '.join(config['configures']['meson'])
+    if 'configures' in opts['config'].keys() and 'meson' in opts['config']['configures'].keys():
+        configures = ' '.join(opts['config']['configures']['meson'])
 
     cmdlines = []
     if os.path.isfile('./meson.build'):
         cmdlines.append('meson _build ' + configures)
         cmdlines.append('cd _build')
         cmdlines.append('ninja')
-        if 'variables' in config.keys():
-            build_run (container_name, 'src_build', cmdlines, config['variables'])
-        else:
-            build_run (container_name, 'src_build', cmdlines)
+        build_run ('src_build', cmdlines, opts)
 
-def source_build(build_type, container_name):
-    if build_type == "autotools":
-        autotools_build (container_name)
-    elif build_type == "meson":
-        meson_build (container_name)
+def source_build(opts):
+    if opts['build_type'] == 'autotools':
+        autotools_build (opts)
+    elif opts['build_type'] == 'meson':
+        meson_build (opts)
 
 if __name__=="__main__":
     args = parse_args()
@@ -278,33 +309,30 @@ if __name__=="__main__":
         try:
             import yaml
         except:
-            run_cmd ("apt-get update -y")
-            run_cmd ("apt-get install -y python3-yaml")
+            run_cmd ("apt-get update -y", {'verbose':True, 'max_lines':100})
+            run_cmd ("apt-get install -y python3-yaml", {'verbose':True, 'max_lines':100})
             try:
                 import yaml
             except:
-                print_error("Don't use '%s' as config file\n" % args.config)
+                msg = "Can't import 'yaml' python module on the Host OS.\nPlease replace the '%s' file with a JSON file.\n" % args.config
+                print_error(msg)
                 sys.exit(1)
 
     config = load_config(args.config)
-
-    distro = args.name.split(':')[0]
-    if distro.find('/') > 0:
-        distro = distro.rsplit('/',1)[-1]
-    container_name = "%s-%s-build" % (get_repo_name(), distro)
+    opts = setup_options(args, config)
 
     if args.install:
-        docker_pull(args.name)
-        if not docker_is_running (container_name):
-            docker_run_daemon(args.name, container_name, '/bin/bash')
-        system_update(distro, container_name)
-        system_install(distro, container_name, args.verbose, args.lines)
+        docker_pull(opts)
+        if not docker_is_running (opts):
+            docker_run_daemon('/bin/bash', opts)
+        system_update(opts)
+        system_install(opts)
 
     if args.build:
-        before_scripts(container_name)
-        source_build(args.build, container_name)
-        after_scripts(container_name)
+        run_scripts(opts, 'before')
+        source_build(opts)
+        run_scripts(opts, 'after')
 
-    if args.clean and docker_is_running (container_name):
-        docker_kill (container_name)
-        docker_rm (container_name)
+    if args.clean and docker_is_running (opts):
+        docker_kill (opts)
+        docker_rm (opts)
