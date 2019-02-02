@@ -106,6 +106,13 @@ def load_config (cfgfile):
 
 def run_cmd(command, opts):
     print_cmdline(command)
+    if command.startswith('docker exec'):
+        sh = command.split()[-1].strip()
+        shpath = os.path.join(opts['host_dir'], os.path.basename(sh))
+        if os.path.isfile(shpath):
+            print('# cat %s' % sh)
+            print(open(shpath).read())
+            print('# %s' % sh)
 
     result = Result()
     if opts['verbose']:
@@ -192,8 +199,8 @@ def get_repo_name():
 def build_run(script, cmdline, opts):
     shpath = os.path.join(opts['host_dir'], script)
     fp = open(shpath, 'w+')
-    fp.write('#!/bin/bash\n\n')
-    if args.verbose:
+    fp.write('#!/bin/bash\n')
+    if opts['verbose']:
         fp.write('set -x\n\n')
 
     # Setup envirment variables
@@ -208,9 +215,10 @@ def build_run(script, cmdline, opts):
             continue
         fp.write ("export %s=%s\n" % (k.upper(), str(v).lower()))
 
-    fp.write('cd /rootdir\n')
-    fp.write(' && '.join(cmdline))
     fp.write('\n')
+    fp.write('cd /rootdir\n\n')
+    for line in cmdline:
+        fp.write('%s\n' % line)
     fp.close()
     os.chmod(shpath, stat.S_IRWXU |stat.S_IXGRP|stat.S_IXOTH)
     docker_exec(os.path.join('/rootdir/', script), opts)
