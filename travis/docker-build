@@ -132,7 +132,7 @@ def run_cmd(command, opts):
     return result
 
 def docker_pull (opts):
-    image_name = "%s:%s" % (opts['distro_name'], opts['distro_version'])
+    image_name = opts['image_name']
     cmd = "docker pull %s" % image_name
     result = run_cmd (cmd, opts)
     if result.exit_code != 0:
@@ -141,7 +141,7 @@ def docker_pull (opts):
 def docker_run_daemon (command, opts):
     container_name = opts['container_name']
     host_dir = opts['host_dir']
-    image_name = "%s:%s" % (opts['distro_name'], opts['distro_version'])
+    image_name = opts['image_name']
 
     cmd = "docker run --name %s --volume %s:/rootdir -t -d %s %s" % (container_name, host_dir, image_name, command)
     result = run_cmd (cmd, opts)
@@ -211,7 +211,7 @@ def build_run(script, cmdline, opts):
 
     # export option setup as envirment variables
     for k, v in opts.items():
-        if k in ['config', 'distro_upgrade', 'install_command', 'host_dir']:
+        if k in ['config', 'distro_upgrade', 'install_command', 'host_dir', 'image_name']:
             continue
         fp.write ("export %s=%s\n" % (k.upper(), str(v).lower()))
 
@@ -228,6 +228,7 @@ def setup_options(args, config):
             'build_type' : 'autotools',
             'distro_name' : 'fedora',
             'distro_version' : 'latest',
+            'image_name' : args.name,
             'max_lines' : args.lines,
             'host_dir' : os.path.dirname(os.path.abspath(__file__)),
             'start_dir' : '/rootdir',
