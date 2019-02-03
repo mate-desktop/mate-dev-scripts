@@ -250,7 +250,7 @@ def setup_options(args, config):
     elif distro_name == 'centos':
         option['distro_upgrade'] = 'yum update -y'
         option['install_command'] = 'yum install -y'
-    if distro_name == 'fedora':
+    elif distro_name == 'fedora':
         option['distro_upgrade'] = 'dnf update -y'
         option['install_command'] = 'dnf install -y'
     elif distro_name == 'debian' or distro_name == 'ubuntu':
