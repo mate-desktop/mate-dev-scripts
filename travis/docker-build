@@ -31,9 +31,9 @@ class Result:
     pass
 
 class ShortIO(object):
-    def __init__ (self, max_lines=0):
-        self.head_lines = int(max_lines/2)
-        self.tail_lines = int(max_lines - self.head_lines)
+    def __init__ (self, limit=0):
+        self.head_lines = int(limit/2)
+        self.tail_lines = int(limit - self.head_lines)
         self.line_count = 0
         self.tail_list = []
 
@@ -83,13 +83,14 @@ def print_error(msg):
 
 def parse_args():
     parser = argparse.ArgumentParser(description='Compile the software in a Docker container')
-    parser.add_argument('-i', '--install', dest='install', action='store_true', help='Install dependent packages before compilation.')
-    parser.add_argument('-v', '--verbose', dest='verbose', action='store_true', help='Enable verbose output')
     parser.add_argument('-C', '--clean', dest='clean', action='store_true', help='Clean up the Docker container after completion.')
-    parser.add_argument('-n', '--name',  dest='name', action='store', default='fedora', help='Docker image name, default is "fedora". Can write a tag, such as "ubuntu:18.10".')
-    parser.add_argument('-l', '--lines',  dest='lines', action='store', type=int, default=100, help='The maximum number of lines to output, default is 100. Set to 0 or less than 0 means no limit. If --verbose is enabled, the value is ignored as unlimited.')
-    parser.add_argument('-c', '--config',  dest='config', action='store', default='.docker-build.yml', help='Configuration file path, default is ".docker-build.yml".')
     parser.add_argument('-b', '--build', dest='build', action='store', choices={'autotools','meson'}, help='The build type, can be "autotools" or "meson".')
+    parser.add_argument('-c', '--config',  dest='config', action='store', default='.docker-build.yml', help='Configuration file path, default is ".docker-build.yml".')
+    parser.add_argument('-i', '--install', dest='install', action='store_true', help='Install dependent packages before compilation.')
+    parser.add_argument('-l', '--limit',  dest='limit', action='store', type=int, default=100, help='Limit the number of command line output, default is 100. Set to 0 or less than 0 means no limit. If --verbose is enabled, the value is ignored as unlimited.')
+    parser.add_argument('-n', '--name',  dest='name', action='store', default='fedora', help='Docker image name, default is "fedora". Can write a tag, such as "ubuntu:18.10".')
+    parser.add_argument('-s', '--shell', dest='shell', action='store_true', help='Run bash in the docker container and enter the interactive command line')
+    parser.add_argument('-v', '--verbose', dest='verbose', action='store_true', help='Enable verbose output')
 
     return parser.parse_args()
 
@@ -118,7 +119,7 @@ def run_cmd(command, opts):
     if opts['verbose']:
         io = ShortIO(-1)
     else:
-        io = ShortIO(opts['max_lines'])
+        io = ShortIO(opts['limit'])
     p = subprocess.Popen(shlex.split(command), stdout=subprocess.PIPE, bufsize=1)
     for line in iter(p.stdout.readline, b''):
         io.print(line.decode('utf-8'))
@@ -173,7 +174,19 @@ def docker_rm (opts):
         sys.exit(1)
 
 # The follow commands running in the docker.
+def system_shell(opts):
+    if docker_is_running (opts):
+        cmd = "docker exec -it %s /bin/bash" % opts['container_name']
+        os.system(cmd)
+    else:
+        print_error('The docker container "%s" is not running.' % opts['container_name'])
+
 def system_update (opts):
+    mirror_sh = 'update_mirror.sh'
+    mirror_shpath = os.path.join(opts['host_dir'], mirror_sh)
+    if os.path.isfile(mirror_shpath):
+        cmd = '/rootdir/%s %s' % (mirror_sh, opts['distro_name'])
+        docker_exec (cmd, opts)
     docker_exec (opts['distro_upgrade'], opts)
 
 def system_install (opts):
@@ -229,7 +242,7 @@ def setup_options(args, config):
             'distro_name' : 'fedora',
             'distro_version' : 'latest',
             'image_name' : args.name,
-            'max_lines' : args.lines,
+            'limit' : args.limit,
             'host_dir' : os.path.dirname(os.path.abspath(__file__)),
             'start_dir' : '/rootdir',
             'build_dir' : '/rootdir',
@@ -319,8 +332,8 @@ if __name__=="__main__":
         try:
             import yaml
         except:
-            run_cmd ("apt-get update -y", {'verbose':True, 'max_lines':100})
-            run_cmd ("apt-get install -y python3-yaml", {'verbose':True, 'max_lines':100})
+            run_cmd ("apt-get update -y", {'verbose':True, 'limit':100})
+            run_cmd ("apt-get install -y python3-yaml", {'verbose':True, 'limit':100})
             try:
                 import yaml
             except:
@@ -330,6 +343,10 @@ if __name__=="__main__":
 
     config = load_config(args.config)
     opts = setup_options(args, config)
+
+    if args.shell:
+        system_shell(opts)
+        sys.exit(0)
 
     if args.install:
         docker_pull(opts)
@@ -343,6 +360,7 @@ if __name__=="__main__":
         source_build(opts)
         run_scripts(opts, 'after')
 
-    if args.clean and docker_is_running (opts):
-        docker_kill (opts)
+    if args.clean:
+        if docker_is_running (opts):
+            docker_kill (opts)
         docker_rm (opts)
