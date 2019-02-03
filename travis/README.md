@@ -9,26 +9,30 @@ By default, a YAML file called `.docker-build.yml` is used.
 ## Command line usage
 
 ```
-usage: docker-build [-h] [-i] [-v] [-C] [-n NAME] [-l LINES] [-c CONFIG]
-                    [-b {meson,autotools}]
+usage: docker-build [-h] [-C] [-b {meson,autotools}] [-c CONFIG] [-i]
+                    [-l LIMIT] [-n NAME] [-s] [-v]
 
 Compile the software in a Docker container
 
 optional arguments:
   -h, --help            show this help message and exit
-  -i, --install         Install dependent packages before compilation.
-  -v, --verbose         Enable verbose output
   -C, --clean           Clean up the Docker container after completion.
-  -n NAME, --name NAME  Docker image name, default is "fedora". Can write a
-                        tag, such as "ubuntu:18.10".
-  -l LINES, --lines LINES
-                        The maximum number of lines to output, default is 100.
-                        Set to 0 or less than 0 means no limit. If --verbose
-                        is enabled, the value is ignored as unlimited.
-  -c CONFIG, --config CONFIG
-                        Configuration file path, default is ".docker-build.yml".
   -b {meson,autotools}, --build {meson,autotools}
                         The build type, can be "autotools" or "meson".
+  -c CONFIG, --config CONFIG
+                        Configuration file path, default is ".docker-
+                        build.yml".
+  -i, --install         Install dependent packages before compilation.
+  -l LIMIT, --limit LIMIT
+                        Limit the number of command line output, default is
+                        100. Set to 0 or less than 0 means no limit. If
+                        --verbose is enabled, the value is ignored as
+                        unlimited.
+  -n NAME, --name NAME  Docker image name, default is "fedora". Can write a
+                        tag, such as "ubuntu:18.10".
+  -s, --shell           Run bash in the docker container and enter the
+                        interactive command line
+  -v, --verbose         Enable verbose output
 ```
 
 ## Steps by Step
@@ -63,6 +67,37 @@ dependencies in the container.
 
 The dependency package is written in the configuration file in the 2nd step.
 
+**Note: **
+
+If you find that the distro packages download is too slow when local debugging,
+you can write `update_mirror.sh` script in source directory to modify OS repo url.
+
+Here is an example file:
+
+```
+#!/bin/bash
+if [ $# -ne 1 ];then
+        exit 0
+else
+        distro=$1
+fi
+
+case $distro in
+        archlinux)
+                echo 'Server = http://mirrors.163.com/archlinux/$repo/os/$arch' > /etc/pacman.d/mirrorlist
+                ;;
+        debian)
+                sed -i -s 's/deb.debian.org/mirrors.163.com/g' /etc/apt/sources.list
+                ;;
+        ubuntu)
+                sed -i -s 's/archive.ubuntu.com/mirrors.163.com/g' /etc/apt/sources.list
+                ;;
+        *)
+                true
+                ;;
+esac
+```
+
 4. Start building with autotools by running the follow command:
 
 ```
@@ -92,12 +127,23 @@ create sub-key `ubuntu` for ubuntu distro.
 2. `configures`: The compilation parameters to be used for `./configure` and
 `meson`, create sub-key `autotools` for autotools, sub-key `meson` for meson.
 3. `before_scripts`: The commands to be executed before build.
-4. `after_scripts`: The commands to be executed after build, The *BUILD_TYPE*
-environment variable can be used to determine whether the build type is
-'autotools' or 'meson'.
+4. `after_scripts`: The commands to be executed after build.
 5. `variables`: The environment variables to be used when building.
 
 In the configuration file, only `requires` is required, others are optional.
+
+## Environmental variable
+
+The following environment variables can be used in before/after scripts:
+
+- **BUILD_TYPE** : Compile type, autotools or meson
+- **DISTRO_NAME** : The distro name, such as *debian* or *fedora*
+- **DISTRO_VERSION** : The distro version
+- **LIMIT** - : Maximum number of output lines
+- **START_DIR** : The source code directory
+- **BUILD_DIR** : The compile directory
+- **VERBOSE** : Whether the detailed output is set
+- **CONTAINER_NAME** : Container name
 
 For example:
 
