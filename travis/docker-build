@@ -269,7 +269,7 @@ def setup_options(args, config):
         option['install_command'] = 'dnf install -y'
     elif distro_name == 'debian' or distro_name == 'ubuntu':
         option['distro_upgrade'] = 'apt-get update -y'
-        option['install_command'] = 'apt-get install -y'
+        option['install_command'] = 'env DEBIAN_FRONTEND=noninteractive apt-get install -y'
     else:
         url = 'https://github.com/mate-desktop/mate-dev-scripts/issues/new'
         msg = 'The "%s" distro is not supported, please visit "%s" to create a new issue.' % (distro_name, url)
