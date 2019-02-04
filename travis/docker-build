@@ -314,6 +314,7 @@ def meson_build (opts):
 
     cmdlines = []
     if os.path.isfile('./meson.build'):
+        cmdlines.append('[ -d _build ] && rm -rf _build')
         cmdlines.append('meson _build ' + configures)
         cmdlines.append('cd _build')
         cmdlines.append('ninja')
