@@ -31,31 +31,31 @@ env:
 ##########################################################
 requires:
   archlinux:
-    # Useful URL: https://git.archlinux.org/svntogit/community.git/tree/trunk?h=packages/example
+    # Useful URL: https://git.archlinux.org/svntogit/community.git/tree/example
     - gcc
     - git
     - make
-    - mate-common
+    # Append new requires below
 
   debian:
     # Useful URL: https://github.com/mate-desktop/debian-packages
     # Useful URL: https://salsa.debian.org/debian-mate-team/example
     - git
     - make
-    - mate-common
+    # Append new requires below
 
   fedora:
     # Useful URL: https://src.fedoraproject.org/cgit/rpms/example.git
     - gcc
     - git
     - make
-    - mate-common
     - redhat-rpm-config
+    # Append new requires below
 
   ubuntu:
     - git
     - make
-    - mate-common
+    # Append new requires below
 
 variables:
   - CFLAGS="-Wall -Werror=format-security"
