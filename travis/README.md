@@ -9,30 +9,25 @@ By default, a YAML file called `.docker-build.yml` is used.
 ## Command line usage
 
 ```
-usage: docker-build [-h] [-C] [-b {meson,autotools}] [-c CONFIG] [-i]
-                    [-l LIMIT] [-n NAME] [-s] [-v]
+usage: docker-build [-h] [-c FILE] [-n IMAGE] [-l N] [-s] [-v] [-i]
+                    [-b autotools|meson] [-C]
 
 Compile the software in a Docker container
 
 optional arguments:
   -h, --help            show this help message and exit
-  -C, --clean           Clean up the Docker container after completion.
-  -b {meson,autotools}, --build {meson,autotools}
-                        The build type, can be "autotools" or "meson".
-  -c CONFIG, --config CONFIG
-                        Configuration file path, default is ".docker-
-                        build.yml".
-  -i, --install         Install dependent packages before compilation.
-  -l LIMIT, --limit LIMIT
-                        Limit the number of command line output, default is
-                        100. Set to 0 or less than 0 means no limit. If
-                        --verbose is enabled, the value is ignored as
-                        unlimited.
-  -n NAME, --name NAME  Docker image name, default is "fedora". Can write a
-                        tag, such as "ubuntu:18.10".
-  -s, --shell           Run bash in the docker container and enter the
-                        interactive command line
-  -v, --verbose         Enable verbose output
+  -c FILE, --config FILE
+                        The config file (default is ".docker-build.yml")
+  -n IMAGE, --name IMAGE
+                        Docker image name (default is "fedora")
+  -l N, --limit N       Limit the number of output lines (default is 100)
+  -s, --shell           Run interactive bash in the docker container.
+  -v, --verbose         Verbose output, the number of output lines is not
+                        limited
+  -i, --install         Install dependent packages in docker container.
+  -b autotools|meson, --build autotools|meson
+                        Compile the software in docker container.
+  -C, --clean           Clean up the docker container.
 ```
 
 ## Steps by Step
