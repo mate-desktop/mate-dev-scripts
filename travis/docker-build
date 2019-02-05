@@ -27,6 +27,8 @@ import json
 import argparse
 import subprocess
 
+MESON_BUILD_DIRNAME = '_build'
+
 class Result:
     pass
 
@@ -83,14 +85,14 @@ def print_error(msg):
 
 def parse_args():
     parser = argparse.ArgumentParser(description='Compile the software in a Docker container')
-    parser.add_argument('-C', '--clean', dest='clean', action='store_true', help='Clean up the Docker container after completion.')
-    parser.add_argument('-b', '--build', dest='build', action='store', choices={'autotools','meson'}, help='The build type, can be "autotools" or "meson".')
-    parser.add_argument('-c', '--config',  dest='config', action='store', default='.docker-build.yml', help='Configuration file path, default is ".docker-build.yml".')
-    parser.add_argument('-i', '--install', dest='install', action='store_true', help='Install dependent packages before compilation.')
-    parser.add_argument('-l', '--limit',  dest='limit', action='store', type=int, default=100, help='Limit the number of command line output, default is 100. Set to 0 or less than 0 means no limit. If --verbose is enabled, the value is ignored as unlimited.')
-    parser.add_argument('-n', '--name',  dest='name', action='store', default='fedora', help='Docker image name, default is "fedora". Can write a tag, such as "ubuntu:18.10".')
-    parser.add_argument('-s', '--shell', dest='shell', action='store_true', help='Run bash in the docker container and enter the interactive command line')
-    parser.add_argument('-v', '--verbose', dest='verbose', action='store_true', help='Enable verbose output')
+    parser.add_argument('-c', '--config',  dest='config', metavar='FILE', action='store', default='.docker-build.yml', help='The config file (default is ".docker-build.yml")')
+    parser.add_argument('-n', '--name',  dest='name', metavar='IMAGE', action='store', default='fedora', help='Docker image name (default is "fedora")')
+    parser.add_argument('-l', '--limit',  dest='limit', metavar='N', action='store', type=int, default=100, help='Limit the number of output lines (default is 100)')
+    parser.add_argument('-s', '--shell', dest='shell', action='store_true', help='Run interactive bash in the docker container.')
+    parser.add_argument('-v', '--verbose', dest='verbose', action='store_true', help='Verbose output, the number of output lines is not limited')
+    parser.add_argument('-i', '--install', dest='install', action='store_true', help='Install dependent packages in docker container.')
+    parser.add_argument('-b', '--build', dest='build', metavar='autotools|meson', action='append', help='Compile the software in docker container.')
+    parser.add_argument('-C', '--clean', dest='clean', action='store_true', help='Clean up the docker container.')
 
     return parser.parse_args()
 
@@ -250,6 +252,10 @@ def setup_options(args, config):
             'config' : config,
             }
 
+    # Remove duplicate elements from args.build
+    if args.build:
+        args.build = sorted(set(args.build), key=args.build.index)
+
     # parse distro
     distro = args.name.split(':')
     distro_name = distro[0]
@@ -278,10 +284,6 @@ def setup_options(args, config):
 
     if len(distro) > 1:
         option['distro_version'] = distro[-1]
-
-    if args.build == 'meson':
-        option['build_type'] = 'meson'
-        option['build_dir'] = os.path.join(option['start_dir'], '_build')
 
     return option
 
@@ -314,17 +316,27 @@ def meson_build (opts):
 
     cmdlines = []
     if os.path.isfile('./meson.build'):
-        cmdlines.append('[ -d _build ] && rm -rf _build')
-        cmdlines.append('meson _build ' + configures)
-        cmdlines.append('cd _build')
+        cmdlines.append('[ -d %s ] && rm -rf %s' % (MESON_BUILD_DIRNAME, MESON_BUILD_DIRNAME))
+        cmdlines.append('meson %s %s' % (MESON_BUILD_DIRNAME, configures))
+        cmdlines.append('cd %s' % (MESON_BUILD_DIRNAME))
         cmdlines.append('ninja')
         build_run ('src_build', cmdlines, opts)
 
-def source_build(opts):
-    if opts['build_type'] == 'autotools':
+def source_build(build_type, opts):
+    opts['build_type'] = build_type
+    if build_type == 'meson':
+        opts['build_dir'] = os.path.join(opts['start_dir'], MESON_BUILD_DIRNAME)
+    else:
+        opts['build_dir'] = opts['start_dir']
+
+    run_scripts(opts, 'before')
+    if build_type == 'autotools':
         autotools_build (opts)
     elif opts['build_type'] == 'meson':
         meson_build (opts)
+    else:
+        print_info ('Build system "%s" is not supported.' % build_type)
+    run_scripts(opts, 'after')
 
 if __name__=="__main__":
     args = parse_args()
@@ -357,9 +369,8 @@ if __name__=="__main__":
         system_install(opts)
 
     if args.build:
-        run_scripts(opts, 'before')
-        source_build(opts)
-        run_scripts(opts, 'after')
+        for i in args.build:
+            source_build(i, opts)
 
     if args.clean:
         if docker_is_running (opts):
