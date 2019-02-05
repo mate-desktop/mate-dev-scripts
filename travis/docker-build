@@ -250,7 +250,9 @@ def setup_options(args, config):
             'build_dir' : '/rootdir',
             'verbose' : args.verbose,
             'config' : config,
+            'travis' : bool(os.getenv("TRAVIS")),
             }
+
 
     # Remove duplicate elements from args.build
     if args.build:
@@ -300,12 +302,13 @@ def autotools_build (opts):
         configures = ' '.join(opts['config']['configures']['autotools'])
 
     cmdlines = []
-    if os.path.isfile('./autogen.sh'):
-        cmdlines.append('./autogen.sh ' + configures)
-    elif os.path.isfile('./configure'):
-        cmdlines.append('./configure ' + configures)
-
     if os.path.isfile('./autogen.sh') or os.path.isfile('./configure'):
+        if os.path.isfile('./autogen.sh'):
+            cmdlines.append('./autogen.sh ' + configures)
+        elif os.path.isfile('./configure'):
+            cmdlines.append('./configure ' + configures)
+        if not opts['travis']:
+            cmdlines.append('make clean')
         cmdlines.append('make')
         build_run ('src_build', cmdlines, opts)
 
@@ -316,7 +319,8 @@ def meson_build (opts):
 
     cmdlines = []
     if os.path.isfile('./meson.build'):
-        cmdlines.append('[ -d %s ] && rm -rf %s' % (MESON_BUILD_DIRNAME, MESON_BUILD_DIRNAME))
+        if not opts['travis']:
+            cmdlines.append('[ -d %s ] && rm -rf %s' % (MESON_BUILD_DIRNAME, MESON_BUILD_DIRNAME))
         cmdlines.append('meson %s %s' % (MESON_BUILD_DIRNAME, configures))
         cmdlines.append('cd %s' % (MESON_BUILD_DIRNAME))
         cmdlines.append('ninja')
