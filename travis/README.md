@@ -65,7 +65,7 @@ The dependency package is written in the configuration file in the 2nd step.
 **Note: **
 
 If you find that the distro packages download is too slow when local debugging,
-you can write `update_mirror.sh` script in source directory to modify OS repo url.
+you can write `~/.distro_hook` script in source directory to modify OS repo url.
 
 Here is an example file:
 
