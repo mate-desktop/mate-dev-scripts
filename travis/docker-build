@@ -291,7 +291,7 @@ def setup_options(args, config):
             }
 
     if option['travis']:
-        option['host_dir'] = os.path.dirname(os.path.abspath(__file__)),
+        option['host_dir'] = os.path.dirname(os.path.abspath(__file__))
 
     # Remove duplicate elements from args.build
     if args.build:
@@ -300,7 +300,9 @@ def setup_options(args, config):
     # parse distro
     distro = args.name.split(':')
     distro_name = distro[0]
-    if distro_name.find('/') > 0:
+    if distro_name.find('archlinux') >= 0:
+        distro_name = 'archlinux'
+    elif distro_name.find('/') > 0:
         distro_name = distro_name.rsplit('/',1)[-1]
 
     option['distro_name'] = distro_name
