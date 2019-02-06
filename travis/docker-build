@@ -57,7 +57,7 @@ class ShortIO(object):
             return
         result = self.line_count - self.head_lines - self.tail_lines
         if result > 0:
-            print(' Hidden %d lines of output here ......' % result)
+            print(' %d lines of output are not displayed ......' % result)
         else:
             print()
         for line in self.tail_list:
@@ -80,8 +80,8 @@ def print_cmdline(msg):
     _color_print(bcolors.CBLUE, ">>> [%s] <<<" % msg)
 
 def print_error(msg):
-    _color_print(bcolors.CRED, '!!! ERROR: ')
-    print(msg)
+    _color_print(bcolors.CRED, '!!! ERROR: %s' % msg)
+    #print(msg)
 
 def parse_args():
     parser = argparse.ArgumentParser(description='Compile the software in a Docker container')
@@ -89,7 +89,7 @@ def parse_args():
     parser.add_argument('-n', '--name',  dest='name', metavar='IMAGE', action='store', default='fedora', help='Docker image name (default is "fedora")')
     parser.add_argument('-l', '--limit',  dest='limit', metavar='N', action='store', type=int, default=100, help='Limit the number of output lines (default is 100)')
     parser.add_argument('-s', '--shell', dest='shell', action='store_true', help='Run interactive bash in the docker container.')
-    parser.add_argument('-v', '--verbose', dest='verbose', action='store_true', help='Verbose output, the number of output lines is not limited')
+    parser.add_argument('-v', '--verbose', dest='verbose', action='count', default=0, help='Verbose output, the number of output lines is not limited')
     parser.add_argument('-i', '--install', dest='install', action='store_true', help='Install dependent packages in docker container.')
     parser.add_argument('-b', '--build', dest='build', metavar='autotools|meson', action='append', help='Compile the software in docker container.')
     parser.add_argument('-C', '--clean', dest='clean', action='store_true', help='Clean up the docker container.')
@@ -118,8 +118,26 @@ def run_cmd(command, opts):
             print('# %s' % sh)
 
     result = Result()
-    if opts['verbose']:
-        io = ShortIO(-1)
+    if opts['stage'] == 'src_build':
+        if opts['verbose'] > 0:
+            io = ShortIO(-1)
+        else:
+            io = ShortIO(opts['limit'])
+    elif opts['stage'] == 'after_scripts':
+        if opts['verbose'] > 1:
+            io = ShortIO(-1)
+        else:
+            io = ShortIO(opts['limit'])
+    elif opts['stage'] == 'before_scripts':
+        if opts['verbose'] > 2:
+            io = ShortIO(-1)
+        else:
+            io = ShortIO(opts['limit'])
+    elif opts['stage'] == 'system_install':
+        if opts['verbose'] > 3:
+            io = ShortIO(-1)
+        else:
+            io = ShortIO(opts['limit'])
     else:
         io = ShortIO(opts['limit'])
     p = subprocess.Popen(shlex.split(command), stdout=subprocess.PIPE, bufsize=1)
@@ -130,12 +148,15 @@ def run_cmd(command, opts):
     p.wait()
 
     result.exit_code = p.returncode
+    if opts['verbose'] > 0 and p.returncode != 0:
+        print_error('run command [%s].' % command)
     result.command = command
 
     return result
 
 def docker_pull (opts):
     image_name = opts['image_name']
+    opts['stage'] = 'docker_pull'
     cmd = "docker pull %s" % image_name
     result = run_cmd (cmd, opts)
     if result.exit_code != 0:
@@ -145,6 +166,7 @@ def docker_run_daemon (command, opts):
     container_name = opts['container_name']
     host_dir = opts['host_dir']
     image_name = opts['image_name']
+    opts['stage'] = 'docker_run_daemon'
 
     cmd = "docker run --name %s --volume %s:/rootdir -t -d %s %s" % (container_name, host_dir, image_name, command)
     result = run_cmd (cmd, opts)
@@ -159,17 +181,20 @@ def docker_exec (command, opts):
         sys.exit(1)
 
 def docker_is_running (opts):
+    opts['stage'] = 'docker_is_running'
     cmd = "docker inspect -f '{{.State.Running}}' %s" % opts['container_name']
     result = run_cmd (cmd, opts)
     return result.exit_code == 0
 
 def docker_kill (opts):
+    opts['stage'] = 'docker_kill'
     cmd = "docker container kill %s" % opts['container_name']
     result = run_cmd (cmd, opts)
     if result.exit_code != 0:
         sys.exit(1)
 
 def docker_rm (opts):
+    opts['stage'] = 'docker_rm'
     cmd = "docker container rm %s" % opts['container_name']
     result = run_cmd (cmd, opts)
     if result.exit_code != 0:
@@ -177,6 +202,7 @@ def docker_rm (opts):
 
 # The follow commands running in the docker.
 def system_shell(opts):
+    opts['stage'] = 'system_shell'
     if docker_is_running (opts):
         cmd = "docker exec -it %s /bin/bash" % opts['container_name']
         os.system(cmd)
@@ -188,13 +214,16 @@ def system_update (opts):
     mirror_shpath = os.path.join(opts['host_dir'], mirror_sh)
     if os.path.isfile(mirror_shpath):
         cmd = '/rootdir/%s %s' % (mirror_sh, opts['distro_name'])
+        opts['stage'] = 'docker_update_mirror'
         docker_exec (cmd, opts)
+    opts['stage'] = 'system_update'
     docker_exec (opts['distro_upgrade'], opts)
 
 def system_install (opts):
     if 'requires' not in opts['config'].keys():
         return
 
+    opts['stage'] = 'system_install'
     distro_name = opts['distro_name']
     if distro_name in opts['config']['requires'].keys():
         distro_requires = opts['config']['requires'][distro_name]
@@ -212,6 +241,7 @@ def get_repo_name():
     return os.path.basename(output.strip())
 
 def build_run(script, cmdline, opts):
+    opts['stage'] = script
     shpath = os.path.join(opts['host_dir'], script)
     fp = open(shpath, 'w+')
     fp.write('#!/bin/bash\n')
@@ -243,6 +273,7 @@ def setup_options(args, config):
             'build_type' : 'autotools',
             'distro_name' : 'fedora',
             'distro_version' : 'latest',
+            'stage' : 'default',
             'image_name' : args.name,
             'limit' : args.limit,
             'host_dir' : os.path.dirname(os.path.abspath(__file__)),
