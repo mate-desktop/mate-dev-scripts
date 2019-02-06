@@ -26,6 +26,7 @@ import stat
 import json
 import argparse
 import subprocess
+import shutil
 
 MESON_BUILD_DIRNAME = '_build'
 
@@ -210,12 +211,17 @@ def system_shell(opts):
         print_error('The docker container "%s" is not running.' % opts['container_name'])
 
 def system_update (opts):
-    mirror_sh = 'update_mirror.sh'
-    mirror_shpath = os.path.join(opts['host_dir'], mirror_sh)
-    if os.path.isfile(mirror_shpath):
-        cmd = '/rootdir/%s %s' % (mirror_sh, opts['distro_name'])
-        opts['stage'] = 'docker_update_mirror'
-        docker_exec (cmd, opts)
+    if not opts['travis']:
+        hook_name = 'distro_hook'
+        host_hook_path = os.path.join(opts['host_dir'], hook_name)
+        user_hook_path = os.path.expanduser('~/.%s' % hook_name)
+        if not os.path.isfile(host_hook_path) and os.path.isfile(user_hook_path):
+            shutil.copy(user_hook_path, host_hook_path)
+        if os.path.isfile(host_hook_path):
+            os.chmod(host_hook_path, stat.S_IRWXU |stat.S_IXGRP|stat.S_IXOTH)
+            cmd = '/rootdir/%s %s' % (hook_name, opts['distro_name'])
+            opts['stage'] = hook_name
+            docker_exec (cmd, opts)
     opts['stage'] = 'system_update'
     docker_exec (opts['distro_upgrade'], opts)
 
@@ -276,7 +282,7 @@ def setup_options(args, config):
             'stage' : 'default',
             'image_name' : args.name,
             'limit' : args.limit,
-            'host_dir' : os.path.dirname(os.path.abspath(__file__)),
+            'host_dir' : os.getcwd(),
             'start_dir' : '/rootdir',
             'build_dir' : '/rootdir',
             'verbose' : args.verbose,
@@ -284,6 +290,8 @@ def setup_options(args, config):
             'travis' : bool(os.getenv("TRAVIS")),
             }
 
+    if option['travis']:
+        option['host_dir'] = os.path.dirname(os.path.abspath(__file__)),
 
     # Remove duplicate elements from args.build
     if args.build:
