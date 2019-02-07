@@ -251,6 +251,7 @@ def build_run(script, cmdline, opts):
     shpath = os.path.join(opts['host_dir'], script)
     fp = open(shpath, 'w+')
     fp.write('#!/bin/bash\n')
+    fp.write('set -e\n')
     if opts['verbose']:
         fp.write('set -x\n\n')
 
