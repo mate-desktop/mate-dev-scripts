@@ -6,6 +6,7 @@ services:
   - docker
 
 # Trigger only on the travis branch
+# Remove the lines if every thing is ok.
 branches:
   only:
   - travis
@@ -15,13 +16,28 @@ before_install:
   - chmod +x docker-build
 
 install:
+  - sudo apt-get install -y python3-pip python3-setuptools
+  - sudo pip3 install --upgrade pip
+  - sudo pip install PyGithub
   - ./docker-build --name ${DISTRO} --config .travis.yml --install
 
 script:
   - ./docker-build --name ${DISTRO} --verbose --config .travis.yml --build autotools
 
+## Remove the comments if you need auto release version when git push tag.
+## Don't forget to create github personal access token with the "public_repo/repo" and "user/user:email" scopes.
+## And setup the token value to the hidden environment variables named 'GITHUB_TOKEN'.
+## reference: https://docs.travis-ci.com/user/environment-variables/#defining-variables-in-repository-settings
+#deploy:
+#  provider: script
+#  script: ./docker-build --verbose --config .travis.yml --release github
+#  skip_cleanup: true
+#  on:
+#    tags: true
+#    condition: "${TRAVIS_TAG} =~ ^v.*$ && ${DISTRO} =~ ^fedora.*$"
+
 env:
-  - DISTRO="base/archlinux"
+  - DISTRO="archlinux/base"
   - DISTRO="debian:sid"
   - DISTRO="fedora:29"
   - DISTRO="ubuntu:18.10"
@@ -31,7 +47,7 @@ env:
 ##########################################################
 requires:
   archlinux:
-    # Useful URL: https://git.archlinux.org/svntogit/community.git/tree/example
+    # Useful URL: https://git.archlinux.org/svntogit/community.git/tree/EXAMPLE
     - gcc
     - git
     - make
@@ -39,13 +55,13 @@ requires:
 
   debian:
     # Useful URL: https://github.com/mate-desktop/debian-packages
-    # Useful URL: https://salsa.debian.org/debian-mate-team/example
+    # Useful URL: https://salsa.debian.org/debian-mate-team/EXAMPLE
     - git
     - make
     # Append new requires below
 
   fedora:
-    # Useful URL: https://src.fedoraproject.org/cgit/rpms/example.git
+    # Useful URL: https://src.fedoraproject.org/cgit/rpms/EXAMPLE.git
     - gcc
     - git
     - make
@@ -60,7 +76,7 @@ requires:
 variables:
   - CFLAGS="-Wall -Werror=format-security"
 
-# Remove the comment if you need special parameters
+## Remove the comments if you need special parameters
 #configures:
 #  autotools:
 #    - --prefix=/usr
@@ -69,11 +85,18 @@ variables:
 #    - --prefix /usr
 #    - --sysconfdir /etc
 
-# Remove the comment if you need some thing do before build.
+## Remove the comments if you need to do something before building.
 #before_scripts:
-#  - ''
+## Remove the comments if `make distcheck` fail on debian.
+#  - if [ ${DISTRO_NAME} == "debian" ];then
+#  -     curl -Ls -o debian.sh https://github.com/mate-desktop/mate-dev-scripts/raw/master/travis/debian.sh
+#  -     bash ./debian.sh
+#  - fi
+
 #  - cd ${START_DIR}
-#  - '[ -f mate-desktop-1.21.2.tar.xz ] || curl -Ls -o mate-desktop-1.21.2.tar.xz http://pub.mate-desktop.org/releases/1.21/mate-desktop-1.21.2.tar.xz'
+#  - if [ ! -f mate-desktop-1.21.2.tar.xz ];then
+#  -     curl -Ls -o mate-desktop-1.21.2.tar.xz http://pub.mate-desktop.org/releases/1.21/mate-desktop-1.21.2.tar.xz
+#  - fi
 #  - tar xf mate-desktop-1.21.2.tar.xz
 #  - cd mate-desktop-1.21.2
 #  - if [ ${DISTRO_NAME} == "debian" -o ${DISTRO_NAME} == "ubuntu" ];then
@@ -81,11 +104,40 @@ variables:
 #  - else
 #  -     ./configure --prefix=/usr
 #  - fi
+#  - if [ ${TRAVIS} == "false" ]; then
+#  -     make clean
+#  - fi
 #  - make
 #  - make install
-#  - ''
+
+## Used for "--build scripts"
+#build_scripts:
+#  - cmake
+#  - make
 
 after_scripts:
   - make distcheck
-  # Remove the comment if `make distcheck` fail.
-  #- 'if [ $? -ne 0 ];then RED="\033[0;31m"; NC="\033[0m"; printf "${RED}!!! ERROR: Run make distcheck failed.${NC}\n"; fi'
+
+releases:
+  draft: False             # if True, to create a draft for release
+  prerelease: False        # if True, create a prelease version
+  checksum: True           # if True, auto generate sha256sum file for the tarball, False do nothing
+  file_glob: True          # if True, files use glob to get full path, if False , files is the full path.
+  files: EXAMPLE-*.tar.xz  # files to upload for release, support fullpath or pathname pattern expansion.
+  #files:                  # files also can use list
+  #  - filepath-1
+  #  - filepath-2
+  github_release:          # 1. Release to github
+    tags: True                    # if True, only create github release when push tag.
+    overwrite: True               # if exists a same named tag on server, first delete that tag, then create new tag.
+    base_version: 1.20.0          # base version, if no tags exists on server, use this as previous version to generate release notes.
+    custom_http_headers:          # docker-build can use custom http header to server  when send post message.
+      - "User-Agent = release-bot/0.1.1 (Travis CI)"       # name=value to send server by http header
+      - Release-Token = $SERVER_POST_TOKEN                 # the value begin with $ to use environment variables.
+    notify_servers:               # after github release, notify servers.
+      - http://pub.mate-desktop.org/releases/              # which url will receive the http POST data.
+  scripts_release:         # 2. Release to use custom scripts
+    - for i in $FILE_LISTS; do
+    - echo $i
+    - done
+    - scp $FILE_LISTS use@server.com:path/of/directory
