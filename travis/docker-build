@@ -35,6 +35,7 @@ import hmac
 import hashlib
 import uuid
 import multiprocessing
+import datetime
 
 try:
     import github
@@ -431,8 +432,8 @@ class Github(object):
         data['draft'] = self.release.draft
         data['news'] = self.release.body
         data['prerelease'] = self.release.prerelease
-        data['created_at'] = self.release.created_at
-        data['published_at'] = self.release.published_at
+        data['created_at'] = self.release.created_at.replace(tzinfo=datetime.timezone.utc).isoformat()
+        data['published_at'] = self.release.published_at.replace(tzinfo=datetime.timezone.utc).isoformat()
         data['files'] = []
         for i in self.release.get_assets():
             file = {}
