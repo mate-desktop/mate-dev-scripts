@@ -694,9 +694,19 @@ def create_script(script, cmdline, opts):
         fp.write('set -x\n\n')
 
     # Import TRAVIS_* envirment variables
-    env_names = sorted(set(os.environ.keys()))
-    for var in env_names:
-        if var.startswith('TRAVIS_'):
+    travis_envs = (
+            'TRAVIS_BRANCH',
+            'TRAVIS_BUILD_WEB_URL',
+            'TRAVIS_COMMIT',
+            'TRAVIS_COMMIT_MESSAGE',
+            'TRAVIS_COMMIT_RANGE',
+            'TRAVIS_PULL_REQUEST',
+            'TRAVIS_REPO_SLUG',
+            'TRAVIS_SECURE_ENV_VARS',
+            'TRAVIS_TAG',
+            )
+    for var in travis_envs:
+        if var in os.environ.keys():
             fp.write ('export %s="%s"\n' % (var, os.environ[var]))
 
     # Setup envirment variables
