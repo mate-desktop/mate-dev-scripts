@@ -729,7 +729,7 @@ def create_script(script, cmdline, opts):
 
     # export option setup as envirment variables
     for k, v in opts.items():
-        if k in ['config', 'distro_upgrade', 'install_command', 'host_dir', 'image_name', 'stage', 'new_tag']:
+        if k in ['config', 'distro_upgrade', 'install_command', 'host_dir', 'image_name', 'stage', 'new_tag', 'verbose', 'build_type', 'stage', 'image_name', 'limit']:
             continue
         if type(v) == list:
             fp.write ("export %s=\"%s\"\n" % (k.upper(), ' '.join(v)))
@@ -741,7 +741,7 @@ def create_script(script, cmdline, opts):
             fp.write('%s\n' % line)
 
     travis_uid = int(os.getenv("TRAVIS_UID"))
-    if travis_uid > 0:
+    if os.getuid() == 0 and travis_uid > 0:
         fp.write('chown -R %d %s\n' % (travis_uid, opts['start_dir']))
     fp.close()
     os.chmod(shpath, stat.S_IRWXU |stat.S_IXGRP|stat.S_IXOTH)
@@ -761,7 +761,6 @@ def setup_options(args, config):
             'config' : config,
             'new_tag' : '',
             'travis' : bool(os.getenv("TRAVIS")),
-            'pull_request' : os.getenv('TRAVIS_PULL_REQUEST', 'false'),
             }
 
     if option['travis']:
