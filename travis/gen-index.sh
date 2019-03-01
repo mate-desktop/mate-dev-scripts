@@ -131,7 +131,6 @@ echo "<li><a href=${new_result}>${new_result}</a></li>" >> ${output}
 # add the history results
 temp_work_dir=`mktemp -d -u`
 remote_url=`git config remote.origin.url`
-remote_url='https://github.com/mate-desktop/marco.git'
 
 git clone --single-branch  --branch=gh-pages ${remote_url} ${temp_work_dir}
 for i in `ls -r ${temp_work_dir} | grep -v ${output} | tail -n ${count}`; do
