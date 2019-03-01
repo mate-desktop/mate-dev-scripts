@@ -455,7 +455,7 @@ class Github(object):
             sys.exit(1)
 
 def send_post_to_url(url, payload, headers={}):
-    nonce = str(uuid.uuid4())
+    nonce = str(uuid.uuid4()).replace('-','').upper()
     if type(payload) == str:
         body = payload
     else:
@@ -740,9 +740,11 @@ def create_script(script, cmdline, opts):
         if line is not None:
             fp.write('%s\n' % line)
 
-    travis_uid = int(os.getenv("TRAVIS_UID"))
-    if os.getuid() == 0 and travis_uid > 0:
-        fp.write('chown -R %d %s\n' % (travis_uid, opts['start_dir']))
+    uid = os.getenv("TRAVIS_UID")
+    if uid:
+        travis_uid = int(uid)
+        if travis_uid > 0:
+            fp.write('chown -R %d %s\n' % (travis_uid, opts['start_dir']))
     fp.close()
     os.chmod(shpath, stat.S_IRWXU |stat.S_IXGRP|stat.S_IXOTH)
 
