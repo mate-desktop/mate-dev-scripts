@@ -22,7 +22,7 @@ Generate analyzer results index
 EOF
 }
 
-count=5
+count=10
 branch=${TRAVIS_BRANCH}
 owner=${OWNER_NAME}
 name=${REPO_NAME}
