@@ -124,18 +124,19 @@ EOF
 
 # add the current result
 old_result=`ls ${directory}|grep -v ${output} | tail -n 1`
-new_result="${old_result}@${commit:0:12}"
-mv ${directory}/${old_result} ${directory}/${new_result}
+new_result="${old_result}@${commit:0:12}_${branch}"
+mv "${directory}/${old_result}" "${directory}/${new_result}"
 echo "<li><a href=${new_result}>${new_result}</a></li>" >> ${output}
 
+((count-=1))
 # add the history results
 temp_work_dir=`mktemp -d -u`
 remote_url=`git config remote.origin.url`
 
 git clone --single-branch  --branch=gh-pages ${remote_url} ${temp_work_dir}
 for i in `ls -r ${temp_work_dir} | grep -v ${output} | tail -n ${count}`; do
-        if [ -d ${temp_work_dir}/$i ];then
-                cp -r ${temp_work_dir}/$i ${directory}
+        if [ -d "${temp_work_dir}/$i" ];then
+                cp -r "${temp_work_dir}/$i" "${directory}"
                 echo "<li><a href=$i>$i</a></li>" >> ${output}
         fi
 done
