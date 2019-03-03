@@ -146,3 +146,4 @@ echo "</ul>" >> ${output}
 echo "</body>" >> ${output}
 echo "</html>" >> ${output}
 mv ${output} ${directory}
+echo ${name}.mate-desktop.dev > ${directory}/CNAME
