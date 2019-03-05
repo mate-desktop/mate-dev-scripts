@@ -731,14 +731,18 @@ def create_script(script, cmdline, opts):
     for k, v in opts.items():
         if k in ['config', 'distro_upgrade', 'install_command', 'host_dir', 'image_name', 'stage', 'new_tag', 'verbose', 'build_type', 'stage', 'image_name', 'limit']:
             continue
-        if type(v) == list:
+        if isinstance(v, list):
             fp.write ("export %s=\"%s\"\n" % (k.upper(), ' '.join(v)))
         else:
             fp.write ("export %s=%s\n" % (k.upper(), str(v).lower()))
     fp.write('\n')
-    for line in cmdline:
-        if line is not None:
-            fp.write('%s\n' % line)
+
+    if isinstance(cmdline, str):
+        fp.write('%s\n' % cmdline)
+    elif isinstance(cmdline, list):
+        for line in cmdline:
+            if line is not None:
+                fp.write('%s\n' % line)
 
     uid = os.getenv("TRAVIS_UID")
     if uid:
