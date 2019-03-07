@@ -735,6 +735,10 @@ def create_script(script, cmdline, opts):
             fp.write ("export %s=\"%s\"\n" % (k.upper(), ' '.join(v)))
         else:
             fp.write ("export %s=%s\n" % (k.upper(), str(v).lower()))
+
+    # export cpu count as envirment variables
+    cpu_count = multiprocessing.cpu_count()
+    fp.write ("export CPU_COUNT=%d\n" % cpu_count)
     fp.write('\n')
 
     if isinstance(cmdline, str):
