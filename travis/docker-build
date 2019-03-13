@@ -718,7 +718,12 @@ def create_script(script, cmdline, opts):
             )
     for var in travis_envs:
         if var in os.environ.keys():
-            fp.write ('export %s="%s"\n' % (var, os.environ[var]))
+            if var == 'TRAVIS_COMMIT_MESSAGE':
+                raw_msg = os.environ[var]
+                new_msg = raw_msg.replace("'", "\'\\\'\'")
+                fp.write ("export %s='%s'\n" % (var, new_msg))
+            else:
+                fp.write ("export %s='%s'\n" % (var, os.environ[var]))
 
     # Setup envirment variables
     if 'variables' in opts['config'].keys():
