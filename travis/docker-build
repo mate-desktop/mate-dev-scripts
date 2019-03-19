@@ -548,9 +548,13 @@ def run_cmd(command, opts):
         sh = command.split()[-1].strip()
         shpath = os.path.join(opts['host_dir'], os.path.basename(sh))
         if os.path.isfile(shpath):
-            print('# cat %s' % sh)
+            if os.getuid() == 0:
+                prompt = '#'
+            else:
+                prompt = '$'
+            print('%s cat %s' % (prompt, sh))
             print(open(shpath).read())
-            print('# %s' % sh)
+            print('%s %s' % (prompt, sh))
 
     result = Result()
     io = ShortIO(opts['limit'])
