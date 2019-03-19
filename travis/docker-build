@@ -756,7 +756,7 @@ def create_script(script, cmdline, opts):
     uid = os.getenv("TRAVIS_UID")
     if uid:
         travis_uid = int(uid)
-        if travis_uid > 0:
+        if os.getuid() == 0 and os.path.isdir(opts['start_dir']):
             fp.write('chown -R %d %s\n' % (travis_uid, opts['start_dir']))
     fp.close()
     os.chmod(shpath, stat.S_IRWXU |stat.S_IXGRP|stat.S_IXOTH)
