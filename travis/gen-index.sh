@@ -134,7 +134,7 @@ temp_work_dir=`mktemp -d -u`
 remote_url=`git config remote.origin.url`
 
 git clone --single-branch  --branch=gh-pages ${remote_url} ${temp_work_dir}
-for i in `ls -r ${temp_work_dir} | grep -v ${output} | tail -n ${count}`; do
+for i in `ls -r ${temp_work_dir} | grep -v ${output} | head -n ${count}`; do
         if [ -d "${temp_work_dir}/$i" ];then
                 cp -r "${temp_work_dir}/$i" "${directory}"
                 echo "<li><a href=$i>$i</a></li>" >> ${output}
