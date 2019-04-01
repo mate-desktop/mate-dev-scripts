@@ -31,7 +31,7 @@ commit_range=${TRAVIS_COMMIT_RANGE}
 commit_message=${TRAVIS_COMMIT_MESSAGE}
 travis_url=${TRAVIS_BUILD_WEB_URL}
 directory=html-report
-output=index.html
+index_page=index.html
 
 while getopts "hb:c:d:i:l:m:n:o:r:t:" OPTION; do
     case $OPTION in
@@ -79,7 +79,7 @@ done
 shift $((OPTIND-1))
 
 if [ $# -eq 1 ];then
-        output=$1
+        index_page=$1
 fi
 
 if [ ! -d $directory ];then
@@ -89,7 +89,7 @@ fi
 
 echo "Generating clang analyzer results index file..."
 
-cat > $output <<EOF
+cat > $index_page <<EOF
 <!DOCTYPE HTML>
 <html lang="en">
   <head>
@@ -97,10 +97,10 @@ cat > $output <<EOF
 EOF
 
 if [ -n $icon_url ];then
-        echo "  <link rel=\"icon\" href=\"$icon_url\" />" >> ${output}
+        echo "  <link rel=\"icon\" href=\"$icon_url\" />" >> ${index_page}
 fi
 
-cat >> ${output} << EOF
+cat >> ${index_page} << EOF
   <title>${name} Code Analyzer results</title>
 </head>
 <body>
@@ -123,10 +123,10 @@ ${commit_message}
 EOF
 
 # add the current result
-old_result=`ls ${directory}|grep -v ${output} | tail -n 1`
+old_result=`find ${directory} -maxdepth 1 -name "????-??-??-*" -exec basename {} \;`
 new_result="${old_result}@${commit:0:12}_${branch}"
 mv "${directory}/${old_result}" "${directory}/${new_result}"
-echo "<li><a href=${new_result}>${new_result}</a></li>" >> ${output}
+echo "<li><a href=${new_result}>${new_result}</a></li>" >> ${index_page}
 
 ((count-=1))
 # add the history results
@@ -134,16 +134,17 @@ temp_work_dir=`mktemp -d -u`
 remote_url=`git config remote.origin.url`
 
 git clone --single-branch  --branch=gh-pages ${remote_url} ${temp_work_dir}
-for i in `ls -r ${temp_work_dir} | grep -v ${output} | head -n ${count}`; do
+rm -f ${temp_work_dir}/${index_page} ${temp_work_dir}/CNAME
+for i in `find ${temp_work_dir} -maxdepth 1 -name "????-??-??-*" -exec basename {} \; |sort -r | head -n ${count}`; do
         if [ -d "${temp_work_dir}/$i" ];then
                 cp -r "${temp_work_dir}/$i" "${directory}"
-                echo "<li><a href=$i>$i</a></li>" >> ${output}
+                echo "<li><a href=$i>$i</a></li>" >> ${index_page}
         fi
 done
 rm -rf ${temp_work_dir}
 
-echo "</ul>" >> ${output}
-echo "</body>" >> ${output}
-echo "</html>" >> ${output}
-mv ${output} ${directory}
+echo "</ul>" >> ${index_page}
+echo "</body>" >> ${index_page}
+echo "</html>" >> ${index_page}
+mv ${index_page} ${directory}
 echo ${name}.mate-desktop.dev > ${directory}/CNAME
