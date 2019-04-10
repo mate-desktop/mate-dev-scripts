@@ -738,7 +738,7 @@ def create_script(script, cmdline, opts):
 
     # export option setup as envirment variables
     for k, v in opts.items():
-        if k in ['config', 'distro_upgrade', 'install_command', 'host_dir', 'image_name', 'stage', 'new_tag', 'verbose', 'build_type', 'stage', 'image_name', 'limit']:
+        if k in ['config', 'distro_upgrade', 'install_command', 'host_dir', 'image_name', 'stage', 'new_tag', 'verbose', 'stage', 'image_name', 'limit']:
             continue
         if isinstance(v, list):
             fp.write ("export %s=\"%s\"\n" % (k.upper(), ' '.join(v)))
