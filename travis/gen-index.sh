@@ -123,12 +123,14 @@ ${commit_message}
 EOF
 
 # add the current result
-old_result=`find ${directory} -maxdepth 1 -name "????-??-??-*" -exec basename {} \;`
-new_result="${old_result}@${commit:0:12}_${branch}"
-mv "${directory}/${old_result}" "${directory}/${new_result}"
-echo "<li><a href=${new_result}>${new_result}</a></li>" >> ${index_page}
-
-((count-=1))
+current_result=`find ${directory} -maxdepth 1 -type d -name "????-??-??-*"`
+if [ ! -z $current_result ];then
+        old_result=`basename $current_result`
+        new_result="${old_result}@${commit:0:12}_${branch}"
+        mv "${directory}/${old_result}" "${directory}/${new_result}"
+        echo "<li><a href=${new_result}>${new_result}</a></li>" >> ${index_page}
+        ((count-=1))
+fi
 # add the history results
 temp_work_dir=`mktemp -d -u`
 remote_url=`git config remote.origin.url`
