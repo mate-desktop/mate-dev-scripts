@@ -8,17 +8,18 @@ Usage: `basename $0` [OPTIONS] [index.html]
 
 Generate analyzer results index
 
--h                show this help
--b <BRANCH>       branch name
--c <COMMIT>       commit id
--d <PATH>         html files directory
--i <URL>          project icon url
--l <NUMBER>       keep results numbers.
--m <MESSAGES>     commit messages
--n <NAME>         project name
--o <OWNER>        project owner
--r <RANGE>        commit range
--t <TRAVIS_URL>   url
+-h                 show this help
+-b <BRANCH>        branch name
+-c <COMMIT>        commit id
+-d <PATH>          html files directory
+-i <URL>           project icon url
+-l <NUMBER>        keep results numbers.
+-m <MESSAGES>      commit messages
+-n <NAME>          project name
+-o <OWNER>         project owner
+-p <CPPCHECK_PATH> cppcheck html directory
+-r <RANGE>         commit range
+-t <TRAVIS_URL>    url
 EOF
 }
 
@@ -31,9 +32,10 @@ commit_range=${TRAVIS_COMMIT_RANGE}
 commit_message=${TRAVIS_COMMIT_MESSAGE}
 travis_url=${TRAVIS_BUILD_WEB_URL}
 directory=html-report
+cppcheck_directory=cppcheck-htmlreport
 index_page=index.html
 
-while getopts "hb:c:d:i:l:m:n:o:r:t:" OPTION; do
+while getopts "hb:c:d:i:l:m:n:o:p:r:t:" OPTION; do
     case $OPTION in
     b)
             branch=$OPTARG
@@ -59,6 +61,9 @@ while getopts "hb:c:d:i:l:m:n:o:r:t:" OPTION; do
     o)
             owner=$OPTARG
             ;;
+    p)
+            cppcheck_directory=$OPTARG
+            ;;
     r)
             commit_range=$OPTARG
             ;;
@@ -82,8 +87,9 @@ if [ $# -eq 1 ];then
         index_page=$1
 fi
 
-if [ ! -d $directory ];then
-        echo "No such directory: $directory"
+
+if [ ! -d "$directory" ] && [ ! -d "${cppcheck_directory}" ]; then
+        echo "No such directory ${directory} or ${cppcheck_directory}."
         exit 1
 fi
 
@@ -96,7 +102,7 @@ cat > $index_page <<EOF
   <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css">
 EOF
 
-if [ -n $icon_url ];then
+if [ -n "$icon_url" ];then
         echo "  <link rel=\"icon\" href=\"$icon_url\" />" >> ${index_page}
 fi
 
@@ -122,15 +128,30 @@ ${commit_message}
 <ul>
 EOF
 
-# add the current result
-current_result=`find ${directory} -maxdepth 1 -type d -name "????-??-??-*"`
-if [ ! -z $current_result ];then
-        old_result=`basename $current_result`
-        new_result="${old_result}@${commit:0:12}_${branch}"
-        mv "${directory}/${old_result}" "${directory}/${new_result}"
-        echo "<li><a href=${new_result}>${new_result}</a></li>" >> ${index_page}
-        ((count-=1))
+# add the cppcheck html directory
+if [ -d "${cppcheck_directory}" ];then
+    timenow=`date +%F-%H%M%S`
+    nanoseconds=`date +%N`
+    new_folder="${timenow}-${nanoseconds:0:4}-cppcheck@${commit:0:12}_${branch}"
+    mv "${cppcheck_directory}" "${directory}/${new_folder}"
+    echo "<li><a href=\"${new_folder}\">${new_folder}</a></li>" >> ${index_page}
+    ((count-=1))
 fi
+
+# add the current clang analyzer result
+if [ -d "${directory}" ];then
+    current_result=`find ${directory} -maxdepth 1 -type d -name "????-??-??-*"`
+    if [ -n "$current_result" ];then
+            old_result=`basename $current_result`
+            new_result="${old_result}@${commit:0:12}_${branch}"
+            mv "${directory}/${old_result}" "${directory}/${new_result}"
+            echo "<li><a href=\"${new_result}\">${new_result}</a></li>" >> ${index_page}
+            ((count-=1))
+    fi
+else
+    mkdir ${directory}
+fi
+
 # add the history results
 temp_work_dir=`mktemp -d -u`
 remote_url=`git config remote.origin.url`
