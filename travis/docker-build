@@ -646,7 +646,7 @@ def system_update (opts):
         if not os.path.isfile(host_hook_path) and os.path.isfile(user_hook_path):
             shutil.copy(user_hook_path, host_hook_path)
         if os.path.isfile(host_hook_path):
-            os.chmod(host_hook_path, stat.S_IRWXU |stat.S_IXGRP|stat.S_IXOTH)
+            os.chmod(host_hook_path, stat.S_IRWXU |stat.S_IRGRP | stat.S_IXGRP | stat.S_IROTH | stat.S_IXOTH)
             cmd = '%s %s' % (os.path.join(ROOT_DIR, HOOK_NAME), opts['distro_name'])
             opts['stage'] = HOOK_NAME
             docker_exec (cmd, opts)
@@ -726,6 +726,8 @@ def create_script(script, cmdline, opts):
                 raw_msg = os.environ[var]
                 new_msg = raw_msg.replace("'", "\'\\\'\'")
                 fp.write ("export %s='%s'\n" % (var, new_msg))
+            elif var in ['TRAVIS_BUILD_ID', 'TRAVIS_BUILD_NUMBER', 'TRAVIS_JOB_ID', 'TRAVIS_UID']:
+                fp.write ("export %s=%s\n" % (var, os.environ[var]))
             else:
                 fp.write ("export %s='%s'\n" % (var, os.environ[var]))
 
@@ -758,12 +760,13 @@ def create_script(script, cmdline, opts):
                 fp.write('%s\n' % line)
 
     uid = os.getenv("TRAVIS_UID")
-    if uid:
+    if uid is not None:
         travis_uid = int(uid)
-        if os.getuid() == 0 and os.path.isdir(opts['start_dir']):
-            fp.write('chown -R %d %s\n' % (travis_uid, opts['start_dir']))
+        fp.write('if [ $UID -eq 0 -a -d %s ];then\n' % opts['start_dir'])
+        fp.write('    chown -R %d %s\n' % (travis_uid, opts['start_dir']))
+        fp.write('fi\n')
     fp.close()
-    os.chmod(shpath, stat.S_IRWXU |stat.S_IXGRP|stat.S_IXOTH)
+    os.chmod(shpath, stat.S_IRWXU |stat.S_IRGRP | stat.S_IXGRP | stat.S_IROTH | stat.S_IXOTH)
 
 def setup_options(args, config):
     option = {

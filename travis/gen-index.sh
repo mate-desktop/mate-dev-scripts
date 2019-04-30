@@ -140,7 +140,7 @@ fi
 
 # add the current clang analyzer result
 if [ -d "${directory}" ];then
-    current_result=`find ${directory} -maxdepth 1 -type d -name "????-??-??-*"`
+    current_result=`find ${directory} -maxdepth 1 -type d -name "????-??-??-*"|grep -v cppcheck|head -n1`
     if [ -n "$current_result" ];then
             old_result=`basename $current_result`
             new_result="${old_result}@${commit:0:12}_${branch}"
