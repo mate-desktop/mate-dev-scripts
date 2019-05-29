@@ -132,7 +132,7 @@ EOF
 if [ -d "${cppcheck_directory}" ];then
     timenow=`date +%F-%H%M%S`
     nanoseconds=`date +%N`
-    new_folder="${timenow}-${nanoseconds:0:4}-cppcheck@${commit:0:12}_${branch}"
+    new_folder="${timenow}-${nanoseconds:0:4}-cppcheck@${commit:0:12}_${branch//\//_}"
     mv "${cppcheck_directory}" "${directory}/${new_folder}"
     echo "<li><a href=\"${new_folder}\">${new_folder}</a></li>" >> ${index_page}
     ((count-=1))
@@ -143,7 +143,7 @@ if [ -d "${directory}" ];then
     current_result=`find ${directory} -maxdepth 1 -type d -name "????-??-??-*"|grep -v cppcheck|head -n1`
     if [ -n "$current_result" ];then
             old_result=`basename $current_result`
-            new_result="${old_result}@${commit:0:12}_${branch}"
+            new_result="${old_result}@${commit:0:12}_${branch//\//_}"
             mv "${directory}/${old_result}" "${directory}/${new_result}"
             echo "<li><a href=\"${new_result}\">${new_result}</a></li>" >> ${index_page}
             ((count-=1))
