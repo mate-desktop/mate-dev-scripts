@@ -1,4 +1,4 @@
-#! /usr/bin/python
+#!/usr/bin/python3
 
 # Author: Steve Zesch
 
@@ -7,7 +7,7 @@
 # are stored as mate-desktop/mate-common, mate-desktop/mate-doc-utils, etc.
 
 # Obviously, you want the cwd when the script runs to be the folder that
-# contains all the mate repos. You can achieve this by copying this 
+# contains all the mate repos. You can achieve this by copying this
 # script from mate-dev-scripts/update-repos to the parent directory,
 # running the script via it's path (mate-dev-scripts/update-repos/update.py),
 # or by creating a symbolic link. I prefer the symbolic link method.
@@ -21,5 +21,6 @@ for d in os.listdir('.'):
     if os.path.isdir(d):
         os.chdir(d)
         if '.git' in os.listdir('.'):
+            print(" - ", d)
             os.system('git pull')
         os.chdir('..')
