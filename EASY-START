@@ -1,0 +1,29 @@
+* Install build dependencies.
+
+    See: https://wiki.mate-desktop.org/building
+
+* Create workspace
+
+    ```
+    mkdir ~/workspace-mate
+    cd ~/workspace-mate
+    ```
+
+* Clone mate-dev-scripts
+
+    ```
+    git clone git@github.com:mate-desktop/mate-dev-scripts
+    ```
+
+* Clone all MATE repositories
+
+    ```
+    ./mate-dev-scripts/get-git-repos/download_repos.py
+    ```
+
+* Build first project, eg mate-power-manager, and install it and all its
+  dependencies in ~/workspace-mate/PREFIX directory:
+
+    ```
+    ./mate-dev-scripts/build/build.mk mate-power-manager
+    ```
