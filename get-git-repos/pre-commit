@@ -1,0 +1,54 @@
+#!/usr/bin/bash
+# :vim set ft=bash:
+
+# This example uses astyle on all *.c files.
+
+# Files matching this pattern will be auto-formatted.
+FILE_PATTERN='\.c$'
+# The tool to check for.
+FORMAT_TOOL=astyle
+# The format command. File names will be appended to this.
+FORMAT_COMMAND=(astyle --style=allman --mode=c --indent=spaces=4 --convert-tabs --indent-switches --max-continuation-indent=120)
+
+# Find all staged files that meet some criteria, and exit early if there aren't any.
+MATCHING_FILES=(`git diff --name-only --cached --diff-filter=AM | \
+  grep --color=never "$FILE_PATTERN"`)
+if [ ! "$MATCHING_FILES" ]; then
+  exit 0
+fi
+
+# Verify that our formatter is installed; if not, warn and exit.
+if [ -z $(which "$FORMAT_TOOL") ]; then
+  echo "$FORMAT_TOOL not on path; can not format. Please install."
+  exit 2
+fi
+
+# Check for unstaged changes to files in the index.
+CHANGED_FILES=(`git diff --name-only ${MATCHING_FILES[@]}`)
+if [ "$CHANGED_FILES" ]; then
+  echo 'You have unstaged changes to some files in your commit; skipping '
+  echo 'auto-format. Please stage, stash, or revert these changes. You may '
+  echo 'find `git stash -k` helpful here.'
+  echo
+  echo 'Files with unstaged changes:'
+  for file in ${CHANGED_FILES[@]}; do
+    echo "  $file"
+  done
+  exit 1
+fi
+# Format all staged files, then exit with an error code if any have uncommitted
+# changes.
+echo 'Formatting staged files . . .'
+${FORMAT_COMMAND[@]} ${MATCHING_FILES[@]}
+CHANGED_FILES=(`git diff --name-only ${MATCHING_FILES[@]}`)
+if [ "$CHANGED_FILES" ]; then
+  echo 'Reformatted staged files. Please review and stage the changes.'
+  echo
+  echo 'Files updated:'
+  for file in ${CHANGED_FILES[@]}; do
+    echo "  $file"
+  done
+  exit 1
+else
+  exit 0
+fi
