@@ -667,6 +667,13 @@ def system_install (opts):
             requires = 'gcc git make'
         cmd = '%s %s' % (opts['install_command'], requires)
         docker_exec (cmd, opts)
+        # list versions of the required packages installed
+        if distro_name == 'debian' or distro_name == 'ubuntu':
+            docker_exec ("apt list --installed %s" % requires, opts)
+        if distro_name == 'archlinux':
+            docker_exec ("pacman -Q %s" % requires, opts)
+        if distro_name == 'fedora':
+            docker_exec ("rpm -qa %s" % requires, opts)
 
 def get_repo_name(join_char=None):
     cmd = 'git remote get-url origin'
