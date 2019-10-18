@@ -673,7 +673,7 @@ def system_install (opts):
         if distro_name == 'archlinux':
             docker_exec ("pacman -Q %s" % requires, opts)
         if distro_name == 'fedora':
-            docker_exec ("rpm -qa --noorder %s" % requires, opts)
+            docker_exec ("dnf list installed %s" % requires, opts)
 
 def get_repo_name(join_char=None):
     cmd = 'git remote get-url origin'
