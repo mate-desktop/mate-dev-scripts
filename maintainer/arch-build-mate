@@ -47,7 +47,7 @@ cat > $topdir/debug.h <<EOF
 
 #include <glib.h>
 
-#define debug_print(fmt, ARGS...)  do { g_printerr (G_STRLOC ":" fmt "\n", ##ARGS); } while (0)
+#define debug_print(fmt, ARGS...)  do { g_printerr ("%s:%d:%s(): " fmt "\n", __FILE__, __LINE__, __FUNCTION__, ##ARGS); } while (0)
 
 EOF
 
