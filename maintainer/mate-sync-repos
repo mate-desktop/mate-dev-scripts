@@ -1,0 +1,91 @@
+#!/usr/bin/env python3
+# -*- encoding:utf-8 -*-
+# vim: set filetype=python
+
+__copyright__= "Copyright (C) 2019 Wu Xiaotian <yetist@gmail.com>"
+__license__  = """
+This program is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation; either version 2 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along
+with this program; if not, write to the Free Software Foundation, Inc.,
+51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+"""
+
+import os
+import sys
+import argparse
+import glob
+import shlex
+import shutil
+import subprocess
+
+try:
+    import github
+except:
+    print('Please install "python-pygithub" package on youre system.')
+    print('Homepage: https://github.com/PyGithub/PyGithub')
+    sys.exit(1)
+
+if not shutil.which('hub'):
+    print('Please install "hub" from https://hub.github.com')
+    sys.exit(1)
+
+def sync_repo(name):
+    if not os.path.isdir(name):
+        if args.ssh:
+            cmd ='git clone git@github.com:%s/%s.git' % (args.org, name)
+        else:
+            cmd = 'git clone https://github.com/%s/%s.git' % (args.org, name)
+        os.system(cmd)
+    else:
+        os.system("( cd %s; hub sync;)" % name)
+
+def get_org_repos(org_name):
+    hub = github.Github()
+    org = hub.get_organization(org_name)
+    repos = [i.name for i in org.get_repos()]
+    repos.sort()
+    return repos
+
+def print_repo (i, repo, char="=", width=80):
+    text = '[%02d] Syncing %s' % (i, repo)
+    count = int((width - len(text)) / 2)
+    fill = fill2 = char * int(count)
+    if len(text) % 2 == 1:
+        fill2 = fill + char
+    print('%s %s %s' % (fill, text, fill2))
+
+def main(args):
+    repos = get_org_repos(args.org)
+    i = 1
+    for repo in repos:
+        print_repo(i, repo)
+        sync_repo(repo)
+        i = i + 1
+
+    local_repos = []
+    all = glob.glob('*/.git/config')
+    for filename in all:
+        repo = filename.split('/')[0]
+        content = open(filename).read()
+        if content.find('%s/%s' % (args.org, repo)) > 0:
+            local_repos.append(repo)
+    local_repos.sort()
+    for i in local_repos:
+        if not i in repos:
+            print('Warning: %s is no longer maintained' % i)
+
+if __name__=="__main__":
+    parser = argparse.ArgumentParser(description='Maintainer tools')
+    parser.add_argument('-o', '--org', dest='org', action='store', default='mate-desktop', help='github organization name')
+    parser.add_argument('-s', '--ssh', dest='ssh', action='store_true', help="use ssh for the git clone commands")
+    args = parser.parse_args()
+    main(args)
