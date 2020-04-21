@@ -1,57 +1,52 @@
 #!/bin/bash
 #
-# This script compiles the source code and
-# uses the same configuration parameters as archlinux's package management.
+# It use the same configuration parameters as Archlinux's package management
+# to compile the source code for development.
 
 topdir=`git rev-parse --show-toplevel`
-pkg=`basename $topdir`
-ncpu=`grep processor /proc/cpuinfo |wc -l`
 buildsh=$topdir/build.sh
-repo=`pacman -S -p --print-format '%r' $pkg`
 
 if [ ! -x $buildsh ];then
+    pkg=`basename $topdir`
+    ncpu=`grep processor /proc/cpuinfo |wc -l`
+    repo=`pacman -S -p --print-format '%r' $pkg`
     tempdir=`mktemp -d`
+
     if [[ $repo = "core" || $repo = "extra" || $repo = "testing" ]]; then
         curl -Ls -o $tempdir/PKGBUILD https://git.archlinux.org/svntogit/packages.git/plain/$pkg/trunk/PKGBUILD
     else
         curl -Ls -o $tempdir/PKGBUILD https://git.archlinux.org/svntogit/community.git/plain/$pkg/trunk/PKGBUILD
     fi
-    source $tempdir/PKGBUILD
 
-    echo "#!/bin/bash" > $buildsh
-    echo "set -x" > $buildsh
-    echo pkgname=$pkgname >> $buildsh
-    echo pkgver=$pkgver >> $buildsh
-    echo "if [ ! -f docker-build ];then" >> $buildsh
-    echo "        curl -L -o docker-build https://github.com/mate-desktop/mate-dev-scripts/raw/master/travis/docker-build" >> $buildsh
-    echo "        chmod +x docker-build" >> $buildsh
-    echo "fi" >> $buildsh
-    echo "if [ ! -f configure ];then" >> $buildsh
-    echo "    ./autogen.sh" >> $buildsh
-    echo "fi" >> $buildsh
-    type build| sed '1,4d;$d' >> $buildsh
-    sed -i 's#./configure#./configure --enable-maintainer-mode#' $buildsh
-    sed -i 's/make.*/make -j'$(( ncpu+1))'/' $buildsh
-    chmod +x $buildsh
+    if [ -f $tempdir/PKGBUILD ];then
+        source $tempdir/PKGBUILD
+
+        echo "#!/bin/bash" > $buildsh
+        echo "set -x" >> $buildsh
+        echo "export LC_ALL=C" >> $buildsh
+
+        echo "pkgname=$pkgname" >> $buildsh
+        echo "pkgver=$pkgver" >> $buildsh
+
+        echo 'START=`dirname $(realpath $0)`' >> $buildsh
+        echo 'cd $START' >> $buildsh
+
+        echo "if [ ! -f configure ];then" >> $buildsh
+        echo "    ./autogen.sh 2>&1 | tee autogen.log" >> $buildsh
+        echo "fi" >> $buildsh
+        type build| sed 's/^[[:space:]]*//' | sed '1,4d;$d' >> $buildsh
+        sed -i \
+            -e 's#./configure#./configure --enable-maintainer-mode#' \
+            -e '/.\/configure.*;$/s/;/ 2>\&1 | tee configure.log/' \
+            -e '/sed.*libtool;$/d' \
+            -e 's/make.*/make -j'$(( ncpu+1))' 2>\&1 | tee build.log /' \
+            -e '/.\/configure/a cat >> config.h <<EOF\n\n#define debug_print(fmt, ARGS...)  do { fprintf(stderr, "%s:%d:%s(): " fmt "\\n", __FILE__, __LINE__, __FUNCTION__, ##ARGS); } while (0)\nEOF' \
+            $buildsh
+        chmod +x $buildsh
+    fi
     rm -rf $tempdir
 fi
 
-cat > $topdir/debug.h <<EOF
-/*
-   * How to use?
-   * edit source file, add the follow line:
-   * #include <debug.h>
-   * debug_print("%s", "debug here");
-   *
- * */
-
-#include <glib.h>
-
-#define debug_print(fmt, ARGS...)  do { g_printerr ("%s:%d:%s(): " fmt "\n", __FILE__, __LINE__, __FUNCTION__, ##ARGS); } while (0)
-
-EOF
-
-$buildsh
-if [ -f $topdir/config.h ];then
-        echo "#include <debug.h>" >> $topdir/config.h
+if [ -x $buildsh ];then
+    $buildsh
 fi
