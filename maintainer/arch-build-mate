@@ -34,12 +34,17 @@ if [ ! -x $buildsh ];then
         echo "if [ ! -f configure ];then" >> $buildsh
         echo "    ./autogen.sh 2>&1 | tee autogen.log" >> $buildsh
         echo "fi" >> $buildsh
+
+        echo "" >> $buildsh
+        echo "CHECKERS=\" -enable-checker deadcode.DeadStores -enable-checker alpha.deadcode.UnreachableCode -enable-checker alpha.core.CastSize -enable-checker alpha.core.CastToStruct -enable-checker alpha.core.IdenticalExpr -enable-checker alpha.core.SizeofPtr -enable-checker alpha.security.ArrayBoundV2 -enable-checker alpha.security.MallocOverflow -enable-checker alpha.security.ReturnPtrRange -enable-checker alpha.unix.SimpleStream -enable-checker alpha.unix.cstring.BufferOverlap -enable-checker alpha.unix.cstring.NotNullTerminated -enable-checker alpha.unix.cstring.OutOfBounds -enable-checker alpha.core.FixedAddr -enable-checker security.insecureAPI.strcpy\"" >> $buildsh
+        echo "" >> $buildsh
+
         type build| sed 's/^[[:space:]]*//' | sed '1,4d;$d' >> $buildsh
         sed -i \
-            -e 's#./configure#./configure --enable-maintainer-mode#' \
+            -e 's#./configure#scan-build $CHECKERS ./configure --enable-maintainer-mode --enable-compile-warnings=maximum#' \
             -e '/.\/configure.*;$/s/;/ 2>\&1 | tee configure.log/' \
             -e '/sed.*libtool;$/d' \
-            -e 's/make.*/make -j'$(( ncpu+1))' 2>\&1 | tee build.log /' \
+            -e 's/make.*/scan-build $CHECKERS --keep-cc -o html-report make -j'$(( ncpu+1))' 2>\&1 | tee build.log /' \
             -e '/.\/configure/a cat >> config.h <<EOF\n\n#define debug_print(fmt, ARGS...)  do { fprintf(stderr, "%s:%d:%s(): " fmt "\\n", __FILE__, __LINE__, __FUNCTION__, ##ARGS); } while (0)\nEOF' \
             $buildsh
         chmod +x $buildsh
