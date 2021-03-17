@@ -170,4 +170,12 @@ echo "</ul>" >> ${index_page}
 echo "</body>" >> ${index_page}
 echo "</html>" >> ${index_page}
 mv ${index_page} ${directory}
-echo ${name}.mate-desktop.dev > ${directory}/CNAME
+
+case ${name} in
+caja-actions|pluma-plugins)
+    rm -f ${directory}/CNAME
+    ;;
+*)
+    echo ${name}.mate-desktop.dev > ${directory}/CNAME
+    ;;
+esac
