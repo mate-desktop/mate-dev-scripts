@@ -154,7 +154,7 @@ fi
 
 # add the history results
 temp_work_dir=`mktemp -d -u`
-remote_url=`git config remote.origin.url`
+remote_url=`git config remote.origin.url` || remote_url="https://github.com/${owner}/${name}.git"
 
 git clone --single-branch  --branch=gh-pages ${remote_url} ${temp_work_dir}
 rm -f ${temp_work_dir}/${index_page} ${temp_work_dir}/CNAME
