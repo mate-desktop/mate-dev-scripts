@@ -536,7 +536,7 @@ def load_config (cfgfile):
     if os.path.isfile(cfgfile):
         fp = open(cfgfile)
         if cfgfile.endswith(".yml") or cfgfile.endswith(".yaml"):
-            cfg = yaml.load(fp)
+            cfg = yaml.load(fp, Loader=yaml.SafeLoader)
         elif cfgfile.endswith(".js") or cfgfile.endswith(".json"):
             cfg = json.load(fp)
         fp.close()
