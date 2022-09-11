@@ -598,7 +598,7 @@ def docker_run_daemon (command, opts):
     image_name = opts['image_name']
     opts['stage'] = 'docker_run_daemon'
 
-    cmd = "docker run --name %s --volume %s:%s -t -d %s %s" % (container_name, host_dir, ROOT_DIR, image_name, command)
+    cmd = "docker run --security-opt seccomp=unconfined --name %s --volume %s:%s -t -d %s %s" % (container_name, host_dir, ROOT_DIR, image_name, command)
     result = run_cmd (cmd, opts)
     if result.exit_code != 0:
         sys.exit(1)
