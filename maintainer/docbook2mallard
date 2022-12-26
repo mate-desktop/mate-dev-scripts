@@ -1,0 +1,24 @@
+#!/usr/bin/env sh
+
+if [ $# -ne 1 ]; then
+  echo "Usage: $0 <docbook>"
+  echo
+  echo "Example:"
+  echo "$0 help/C/index.docbook"
+  exit
+fi
+
+realpath=`realpath $1`
+docdir=`dirname $1`
+
+if [ ! -f /tmp/db2mal/db2mal.xsl ]; then
+  git clone https://github.com/projectmallard/db2mal.git /tmp/db2mal
+fi
+
+cd $docdir
+xsltproc /tmp//db2mal/db2mal.xsl $realpath
+
+for i in *.page; do
+  xmllint --pretty 1 $i > ${i}.new
+  mv ${i}.new ${i}
+done
