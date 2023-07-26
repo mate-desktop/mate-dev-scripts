@@ -904,12 +904,12 @@ def meson_build (opts):
         if opts['travis']:
             cmdlines.append('meson {} {}'.format(MESON_BUILD_DIRNAME, configures))
             cmdlines.append('cd {}'.format(MESON_BUILD_DIRNAME))
-            cmdlines.append('ninja')
+            cmdlines.append('ninja -v')
         else:
             cmdlines.append('[ -d {} ] && rm -rf {}'.format(MESON_BUILD_DIRNAME, MESON_BUILD_DIRNAME))
             cmdlines.append('meson {} {} 2>&1 | tee {}-meson.logs'.format(MESON_BUILD_DIRNAME, configures, opts['repo_name']))
             cmdlines.append('cd {}'.format(MESON_BUILD_DIRNAME))
-            cmdlines.append('ninja 2>&1 | tee {}-ninja.logs'.format(opts['repo_name']))
+            cmdlines.append('ninja -v 2>&1 | tee {}-ninja.logs'.format(opts['repo_name']))
         create_script ('source_build', cmdlines, opts)
         docker_exec(os.path.join(ROOT_DIR, 'source_build'), opts)
 
