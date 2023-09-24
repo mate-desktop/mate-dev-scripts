@@ -9,14 +9,9 @@ buildsh=$topdir/build.sh
 if [ ! -x $buildsh ];then
     pkg=`basename $topdir`
     ncpu=`grep processor /proc/cpuinfo |wc -l`
-    repo=`pacman -S -p --print-format '%r' $pkg`
     tempdir=`mktemp -d`
 
-    if [[ $repo = "core" || $repo = "extra" || $repo = "testing" ]]; then
-        curl -Ls -o $tempdir/PKGBUILD https://git.archlinux.org/svntogit/packages.git/plain/$pkg/trunk/PKGBUILD
-    else
-        curl -Ls -o $tempdir/PKGBUILD https://git.archlinux.org/svntogit/community.git/plain/$pkg/trunk/PKGBUILD
-    fi
+    curl -Ls -o $tempdir/PKGBUILD https://gitlab.archlinux.org/archlinux/packaging/packages/$pkg/-/raw/main/PKGBUILD
 
     if [ -f $tempdir/PKGBUILD ];then
         source $tempdir/PKGBUILD
