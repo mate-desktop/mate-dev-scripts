@@ -1,11 +1,15 @@
 A collection of scripts to be used for aiding the development of Mate.
 
+- build/build.mk buils a given mate project and all its dependencies (assuming
+  you have all the system dependencies installed and all mate repos cloned).
+  See the internal documentation of build.mk for more info.
+
 - update-repos/update.py updates all the mate git repos (assuming you have
   them cloned). See the internal documentation of update.py for more info.
 
 - debian-archive/archive.py archives a directory into the *.orig.tar.xz
   needed to build a debian package.
-  
+
 - deprecated-symbols contains a list of all the deprecated gtk, gdk, and
   gdk-pixbuf symbols. See wiki.mate-desktop.org/doku.ph/deprecated_code
   to find out how to use these files with egrep to get a listing of
@@ -14,9 +18,9 @@ A collection of scripts to be used for aiding the development of Mate.
 - po-copyright/po-copyright.py backs up all the copyrights for *.po files
   into gnome-copyrights.txt.
 
-- translation-sync/translation-sync.py synchronizes a packages's 
+- translation-sync/translation-sync.py synchronizes a packages's
   translations from transifex.
 
 - fix-fsf-address/fixlicense.sh updates old fsf address.
-  fix-fsf-address/fsf.py helper script for fix-fsf-address. It or a 
+  fix-fsf-address/fsf.py helper script for fix-fsf-address. It or a
   symlink to it need to be in the same directory as fix-fsf-address.
